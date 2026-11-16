@@ -43,6 +43,19 @@ describe('turnstile', () => {
     expect(append).toHaveBeenCalledTimes(2)
     append.mockRestore()
   })
+
+  it('offers a working retry when the script loads without the Turnstile global', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key')
+    const append = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
+      queueMicrotask(() => (node as HTMLScriptElement).onload?.(new Event('load')))
+      return node
+    })
+    render(<Turnstile onToken={() => {}} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(append).toHaveBeenCalledTimes(2)
+    append.mockRestore()
+  })
 })
 
 describe('signup', () => {

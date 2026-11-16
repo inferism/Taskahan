@@ -20,12 +20,14 @@ function loadTurnstile(): Promise<TurnstileApi> {
     const script = document.createElement('script')
     script.src = SRC
     script.async = true
-    script.onload = () =>
-      window.turnstile ? resolve(window.turnstile) : reject(new Error('Turnstile missing'))
-    script.onerror = () => {
+    // Clear the cached promise on any failure so Retry downloads the script again.
+    const fail = (message: string) => {
       loading = undefined
-      reject(new Error('Turnstile failed to load'))
+      script.remove()
+      reject(new Error(message))
     }
+    script.onload = () => (window.turnstile ? resolve(window.turnstile) : fail('Turnstile missing'))
+    script.onerror = () => fail('Turnstile failed to load')
     document.head.appendChild(script)
   })
   return loading
