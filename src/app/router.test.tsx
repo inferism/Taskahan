@@ -1,0 +1,57 @@
+import { render, screen } from '@testing-library/react'
+import { createMemoryRouter, RouterProvider } from 'react-router'
+import { AuthProvider } from './auth'
+import { ErrorBoundary } from './ErrorBoundary'
+import { routes } from './router'
+
+const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }))
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession,
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+  },
+}))
+
+function renderAt(path: string) {
+  const router = createMemoryRouter(routes, { initialEntries: [path] })
+  render(
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>,
+  )
+  return router
+}
+
+describe('auth guard', () => {
+  it('redirects an unauthenticated visit to / to /login', async () => {
+    getSession.mockResolvedValue({ data: { session: null } })
+    const router = renderAt('/')
+    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
+  })
+
+  it('shows Home to a signed-in user and bounces them off /login', async () => {
+    getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } })
+    const router = renderAt('/login')
+    expect(await screen.findByRole('heading', { name: 'Your groups' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+  })
+})
+
+describe('error boundary', () => {
+  it('shows a recovery screen when a child throws', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const Boom = () => {
+      throw new Error('boom')
+    }
+    render(
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>,
+    )
+    expect(screen.getByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
+  })
+})
