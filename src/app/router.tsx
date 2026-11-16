@@ -4,7 +4,8 @@ import { AuthGuard, GuestOnly } from './AuthGuard'
 import { RouteError } from './ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
-import { BoardPage, HomePage, SettingsPage } from './pages'
+import { HomePage } from '@/features/home/HomePage'
+import { BoardPage, SettingsPage } from './pages'
 
 const appRoutes: RouteObject[] = [
   {

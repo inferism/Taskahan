@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
+import { createQueryClient } from '@/lib/queryClient'
 import { AuthProvider } from './auth'
 import { ErrorBoundary } from './ErrorBoundary'
 import { routes, withErrorElement } from './router'
@@ -8,6 +10,14 @@ const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }))
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
+    from: () => {
+      const chain = {
+        select: () => chain,
+        eq: () => chain,
+        then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
+      }
+      return chain
+    },
     auth: {
       getSession,
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
@@ -18,9 +28,11 @@ vi.mock('@/lib/supabase', () => ({
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   render(
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>,
+    <QueryClientProvider client={createQueryClient()}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </QueryClientProvider>,
   )
   return router
 }
