@@ -343,7 +343,7 @@ function BoardShell({
             )}
             {tab === 'logs' && leader && (
               <PhonePane title="Logs">
-                <LogsPane />
+                <LogsPane board={board} />
               </PhonePane>
             )}
           </main>
