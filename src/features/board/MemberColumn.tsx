@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { forwardRef, useState, type ReactNode } from 'react'
-import { Avatar, cn } from '@/ui'
+import { MemberMenu, type MemberAction } from '@/features/members/MemberMenu'
+import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
 import { deadlineSections, progressOf, progressText } from './selectors'
 import { TaskRow } from './TaskRow'
@@ -32,6 +33,10 @@ export interface MemberColumnProps {
   onEdit?: (task: Task) => void
   /** The question thread shown inside an open task. */
   renderThread?: (task: Task) => ReactNode
+  /** Leader only, on another active member: Make Leader and Remove. */
+  onManage?: (action: MemberAction) => void
+  /** On a former member's column: claim their tasks. */
+  onTakeOver?: () => void
 }
 
 function statusLine(member: Member, isMe: boolean, online: boolean): string {
@@ -74,6 +79,8 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     onRetryStatus,
     onEdit,
     renderThread,
+    onManage,
+    onTakeOver,
   },
   ref,
 ) {
@@ -112,32 +119,35 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
       )}
     >
       <header className={cn('flex flex-col gap-2 border-b border-line p-3', former && 'bg-sunken')}>
-        <button
-          type="button"
-          onClick={onExpand}
-          aria-expanded={fullWidth ? undefined : expanded}
-          disabled={fullWidth}
-          className="flex items-center gap-3 rounded-md text-left disabled:cursor-default"
-        >
-          <Avatar
-            seat={member.seat}
-            name={member.display_name}
-            size={52}
-            former={former}
-            online={online}
-            photoUrl={avatarUrl(member.avatar_path)}
-          />
-          <span className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="truncate font-display text-name font-bold uppercase tracking-[0.02em]">
-              {name}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-expanded={fullWidth ? undefined : expanded}
+            disabled={fullWidth}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left disabled:cursor-default"
+          >
+            <Avatar
+              seat={member.seat}
+              name={member.display_name}
+              size={52}
+              former={former}
+              online={online}
+              photoUrl={avatarUrl(member.avatar_path)}
+            />
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="truncate font-display text-name font-bold uppercase tracking-[0.02em]">
+                {name}
+              </span>
+              <span className="text-label text-muted">{statusLine(member, isMe, online)}</span>
             </span>
-            <span className="text-label text-muted">{statusLine(member, isMe, online)}</span>
-          </span>
-          <span className="font-display text-tally font-bold" aria-label={progressText(p)}>
-            {p.done}
-            <span className="text-name text-muted">/{p.total}</span>
-          </span>
-        </button>
+            <span className="font-display text-tally font-bold" aria-label={progressText(p)}>
+              {p.done}
+              <span className="text-name text-muted">/{p.total}</span>
+            </span>
+          </button>
+          {onManage && <MemberMenu member={member} onAction={onManage} />}
+        </div>
         <div aria-hidden className="flex h-1.5 overflow-hidden rounded-full bg-track">
           <div className="bg-done" style={{ width: `${pct(p.done)}%` }} />
           <div className="bg-yellow" style={{ width: `${pct(p.inProgress)}%` }} />
@@ -200,6 +210,11 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
           })
         )}
       </div>
+      {former && onTakeOver && tasks.length > 0 && (
+        <div className="border-t border-line p-3">
+          <Button onClick={onTakeOver}>Take over tasks</Button>
+        </div>
+      )}
     </section>
   )
 })

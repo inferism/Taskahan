@@ -10,6 +10,11 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { GroupSettingsDialog } from '@/features/members/GroupSettingsDialog'
+import type { MemberAction } from '@/features/members/MemberMenu'
+import { RemoveMemberDialog } from '@/features/members/RemoveMemberDialog'
+import { TakeOverDialog } from '@/features/members/TakeOverDialog'
+import { TransferLeadershipDialog } from '@/features/members/TransferLeadershipDialog'
 import { Roster } from '@/features/progress/Roster'
 import { errorKey, groupsKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
@@ -17,7 +22,15 @@ import { useNow } from '@/lib/useNow'
 import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { Avatar, Button, cn } from '@/ui'
-import { avatarUrl, boardKey, useBoard, useSetTaskStatus, type Board, type Task } from './api'
+import {
+  avatarUrl,
+  boardKey,
+  useBoard,
+  useSetTaskStatus,
+  type Board,
+  type Member,
+  type Task,
+} from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
 import { QuestionThread } from '@/features/threads/QuestionThread'
@@ -114,6 +127,10 @@ function BoardShell({
   const setStatus = useSetTaskStatus(board.group.id)
   // `null` is closed; `'new'` adds; a task edits.
   const [editor, setEditor] = useState<Task | 'new' | null>(null)
+  // Member management: which seat an action is open for, and the settings dialog.
+  const [managing, setManaging] = useState<{ action: MemberAction; member: Member } | null>(null)
+  const [takingOver, setTakingOver] = useState<Member | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members])
   const [chosenPanel, setPanel] = useState<Panel | null>(null)
   // Panels only exist on tablets.
@@ -247,6 +264,12 @@ function BoardShell({
       renderThread={(t) => <QuestionThread board={board} task={t} />}
       failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
       onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}
+      onManage={
+        leader && m.status === 'active' && m.id !== board.me
+          ? (action) => setManaging({ action, member: m })
+          : undefined
+      }
+      onTakeOver={m.status === 'former' ? () => setTakingOver(m) : undefined}
     />
   ))
 
@@ -260,6 +283,7 @@ function BoardShell({
         onPanel={setPanel}
         onlineCount={online.size}
         onAddTask={leader ? () => setEditor('new') : undefined}
+        onSettings={leader ? () => setSettingsOpen(true) : undefined}
       />
       {refreshFailed && (
         <p
@@ -364,6 +388,29 @@ function BoardShell({
         members={activeMembers}
         me={board.me}
         task={editor && editor !== 'new' ? editor : undefined}
+      />
+      <RemoveMemberDialog
+        groupId={board.group.id}
+        member={managing?.action === 'remove' ? managing.member : null}
+        onOpenChange={(open) => !open && setManaging(null)}
+      />
+      <TransferLeadershipDialog
+        groupId={board.group.id}
+        member={managing?.action === 'transfer' ? managing.member : null}
+        onOpenChange={(open) => !open && setManaging(null)}
+      />
+      <TakeOverDialog
+        groupId={board.group.id}
+        me={board.me}
+        from={takingOver}
+        tasks={takingOver ? (byMember.get(takingOver.id) ?? []) : []}
+        onOpenChange={(open) => !open && setTakingOver(null)}
+      />
+      <GroupSettingsDialog
+        open={settingsOpen && leader}
+        onOpenChange={setSettingsOpen}
+        group={board.group}
+        activeCount={activeMembers.length}
       />
     </div>
   )

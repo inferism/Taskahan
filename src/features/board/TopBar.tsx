@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy } from 'lucide-react'
+import { Check, ChevronDown, Copy, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { DropdownMenu } from 'radix-ui'
@@ -21,6 +21,8 @@ export interface TopBarProps {
   onlineCount: number
   /** Leader only. On phones the button sits above the tab bar instead. */
   onAddTask?: () => void
+  /** Leader only: opens group settings. */
+  onSettings?: () => void
 }
 
 const barButton =
@@ -125,7 +127,16 @@ function AccountMenu({ me }: { me: Member | undefined }) {
 }
 
 /** The 56px court-green bar. */
-export function TopBar({ board, me, layout, panel, onPanel, onlineCount, onAddTask }: TopBarProps) {
+export function TopBar({
+  board,
+  me,
+  layout,
+  panel,
+  onPanel,
+  onlineCount,
+  onAddTask,
+  onSettings,
+}: TopBarProps) {
   const toggle = (p: Panel) => onPanel(panel === p ? null : p)
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 bg-bar px-4 text-white md:gap-3 md:px-6">
@@ -139,6 +150,16 @@ export function TopBar({ board, me, layout, panel, onPanel, onlineCount, onAddTa
       )}
       <GroupSwitcher board={board} layout={layout} />
       <JoinCode code={board.group.join_code} compact={layout === 'phone'} />
+      {onSettings && (
+        <button
+          type="button"
+          className={barButton}
+          aria-label="Group settings"
+          onClick={onSettings}
+        >
+          <Settings size={20} strokeWidth={1.75} aria-hidden />
+        </button>
+      )}
       <div className="ml-auto flex items-center gap-1">
         {layout === 'tablet' && (
           <>
