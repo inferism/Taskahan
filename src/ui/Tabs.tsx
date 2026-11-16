@@ -14,14 +14,17 @@ export interface TabsProps {
   value?: string
   defaultValue?: string
   onValueChange?: (value: string) => void
+  /** Panels fill the height they are given and scroll inside, as the chat and logs docks need. */
+  fill?: boolean
 }
 
-export function Tabs({ items, label, value, defaultValue, onValueChange }: TabsProps) {
+export function Tabs({ items, label, value, defaultValue, onValueChange, fill }: TabsProps) {
   return (
     <T.Root
       value={value}
       defaultValue={value === undefined ? (defaultValue ?? items[0]?.value) : undefined}
       onValueChange={onValueChange}
+      className={fill ? 'flex min-h-0 flex-1 flex-col' : undefined}
     >
       <T.List aria-label={label} className="flex border-b border-line">
         {items.map((i) => (
@@ -38,7 +41,11 @@ export function Tabs({ items, label, value, defaultValue, onValueChange }: TabsP
         ))}
       </T.List>
       {items.map((i) => (
-        <T.Content key={i.value} value={i.value} className="pt-3">
+        <T.Content
+          key={i.value}
+          value={i.value}
+          className={cn('pt-3', fill && 'flex min-h-0 flex-1 flex-col')}
+        >
           {i.content}
         </T.Content>
       ))}

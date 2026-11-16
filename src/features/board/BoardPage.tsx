@@ -286,7 +286,7 @@ function BoardShell({
           <aside className="flex min-h-0 flex-col border-r border-line bg-surface">{roster}</aside>
           <BoardArea>{columns}</BoardArea>
           <aside className="flex min-h-0 flex-col border-l border-line bg-surface">
-            <Dock leader={leader} />
+            <Dock board={board} />
           </aside>
         </div>
       )}
@@ -310,7 +310,7 @@ function BoardShell({
             open={panel === 'chat'}
             onClose={() => setPanel(null)}
           >
-            <Dock leader={leader} />
+            <Dock board={board} />
           </SlideOver>
         </div>
       )}
@@ -338,7 +338,7 @@ function BoardShell({
             )}
             {tab === 'chat' && (
               <PhonePane title="Chat">
-                <ChatPane />
+                <ChatPane board={board} />
               </PhonePane>
             )}
             {tab === 'logs' && leader && (
@@ -463,7 +463,7 @@ function PhonePane({ title, children }: { title: string; children: ReactNode }) 
       <h2 className="px-4 pt-4 pb-2 font-display text-name font-bold uppercase tracking-[0.02em]">
         {title}
       </h2>
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   )
 }
