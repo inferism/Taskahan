@@ -17,7 +17,7 @@ set search_path = public, extensions;
 delete from public.groups;
 delete from auth.users;
 
-select plan(441);
+select plan(459);
 
 -- ---------------------------------------------------------------------------
 -- Harness
@@ -304,6 +304,16 @@ insert into matrix (what, sql, spec) values
   -- Only the set-avatar Edge Function, as service role, may call it.
   ('swap_avatar_path is not callable',
    $$ select public.swap_avatar_path({mL}, 'x/y.webp') $$,
+   '42501|42501|42501|42501|42501|42501'),
+  -- Only the purge-inactive Edge Function, as service role, may call these.
+  ('inactive_accounts is not callable',
+   $$ select public.inactive_accounts(10) $$,
+   '42501|42501|42501|42501|42501|42501'),
+  ('release_inactive_account is not callable',
+   $$ select public.release_inactive_account({mL}) $$,
+   '42501|42501|42501|42501|42501|42501'),
+  ('private.release_account is not callable',
+   $$ select private.release_account({mL}) $$,
    '42501|42501|42501|42501|42501|42501');
 
 -- One test per cell.
@@ -354,8 +364,8 @@ select is(
 select is(
   (select array_agg(distinct p.proname::text order by p.proname::text)
      from pg_proc p where p.pronamespace = 'public'::regnamespace),
-  array['create_group', 'create_task', 'delete_task', 'get_group_snapshot', 'join_group',
-        'leave_group', 'open_question', 'remove_member', 'reply_to_question', 'send_message',
+  array['create_group', 'create_task', 'delete_task', 'get_group_snapshot', 'inactive_accounts',
+        'join_group', 'leave_group', 'open_question', 'release_inactive_account', 'remove_member', 'reply_to_question', 'send_message',
         'set_question_resolved', 'set_task_status', 'set_theme', 'swap_avatar_path', 'take_over_tasks',
         'touch_activity', 'transfer_leadership', 'update_group', 'update_task'],
   'the matrix covers every function in public');
