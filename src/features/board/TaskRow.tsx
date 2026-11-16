@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { SegmentedControl, Button, StatusGlyph, cn, statusLabel } from '@/ui'
 import type { Task } from './api'
 import { shownStatus, taskLabel } from './selectors'
@@ -17,6 +17,8 @@ export interface TaskRowProps {
   onRetry?: () => void
   /** Leader only: opens the edit dialog. */
   onEdit?: () => void
+  /** The question thread, rendered under the deadline. */
+  thread?: ReactNode
 }
 
 const statusOptions = [
@@ -45,6 +47,7 @@ export function TaskRow({
   statusError,
   onRetry,
   onEdit,
+  thread,
 }: TaskRowProps) {
   const label = taskLabel(task, now)
   const shown = shownStatus(task)
@@ -104,6 +107,7 @@ export function TaskRow({
                 ? `Deadline: ${dueFormat.format(new Date(task.deadline))}`
                 : 'No deadline'}
             </p>
+            {thread}
             {onEdit && (
               <Button className="self-start" onClick={onEdit}>
                 Edit

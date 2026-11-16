@@ -20,6 +20,7 @@ import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, boardKey, useBoard, useSetTaskStatus, type Board, type Task } from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
+import { QuestionThread } from '@/features/threads/QuestionThread'
 import { TaskDialog } from './TaskDialog'
 import { amLeader, canSetStatus, columnMembers, myMember, tasksByMember } from './selectors'
 import { TopBar, type Panel } from './TopBar'
@@ -243,6 +244,7 @@ function BoardShell({
       onEdit={leader ? setEditor : undefined}
       failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
       onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}
+      renderThread={(t) => <QuestionThread board={board} task={t} />}
     />
   ))
 

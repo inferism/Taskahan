@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { forwardRef, useState } from 'react'
+import { forwardRef, useState, type ReactNode } from 'react'
 import { Avatar, cn } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
 import { deadlineSections, progressOf, progressText } from './selectors'
@@ -30,6 +30,8 @@ export interface MemberColumnProps {
   onRetryStatus?: () => void
   /** Leader only: when given, open tasks show Edit. */
   onEdit?: (task: Task) => void
+  /** The question thread shown inside an open task. */
+  renderThread?: (task: Task) => ReactNode
 }
 
 function statusLine(member: Member, isMe: boolean, online: boolean): string {
@@ -71,6 +73,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     failedTaskId,
     onRetryStatus,
     onEdit,
+    renderThread,
   },
   ref,
 ) {
@@ -188,6 +191,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
                       statusError={failedTaskId === t.id}
                       onRetry={onRetryStatus}
                       onEdit={onEdit && (() => onEdit(t))}
+                      thread={renderThread?.(t)}
                     />
                   ))}
                 </ul>
