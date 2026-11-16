@@ -20,6 +20,8 @@ process.env.E2E_SUPABASE_KEY = key
 
 export default defineConfig({
   testDir: 'e2e',
+  // The performance check needs the production build; it has its own config.
+  testIgnore: '**/perf/**',
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
