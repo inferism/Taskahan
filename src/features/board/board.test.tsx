@@ -741,3 +741,23 @@ describe('second review fixes', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
+
+describe('long titles', () => {
+  it('shows the whole title once a task is open', async () => {
+    const long = 'A'.repeat(116)
+    rpc.mockResolvedValue({
+      data: {
+        ...seedBoardAsBen,
+        tasks: seedBoardAsBen.tasks.map((t) => (t.number === 5 ? { ...t, title: long } : t)),
+      },
+      error: null,
+    })
+    setWidth(1440)
+    renderBoard()
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    const title = within(ben).getByText(long)
+    expect(title).toHaveClass('truncate')
+    await userEvent.click(within(ben).getByRole('button', { name: new RegExp(long) }))
+    expect(title).not.toHaveClass('truncate')
+  })
+})
