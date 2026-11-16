@@ -108,7 +108,7 @@ begin
   -- Lock the task so the assignee check and the insert see the same row.
   select t.* into v_task from public.tasks t
    where t.id = p_task_id and t.deleted_at is null
-     for update;
+     for no key update;
   if not found or v_me.role = 'leader' or v_task.assignee_id <> v_me.id then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
@@ -180,7 +180,7 @@ begin
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'resolved';
   end if;
 
-  select th.* into v_old from public.threads th where th.id = p_thread_id for update;
+  select th.* into v_old from public.threads th where th.id = p_thread_id for no key update;
   if not found or (v_me.role <> 'leader' and v_old.opened_by <> v_me.id) then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;

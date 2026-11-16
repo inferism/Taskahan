@@ -140,7 +140,7 @@ declare
 begin
   select t.* into v_old from public.tasks t
    where t.id = p_task_id and t.deleted_at is null
-     for update;
+     for no key update;
   if not found then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
@@ -229,7 +229,7 @@ begin
 
   select t.* into v_old from public.tasks t
    where t.id = p_task_id and t.deleted_at is null
-     for update;
+     for no key update;
   if not found or (v_me.role <> 'leader' and v_old.assignee_id <> v_me.id) then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
@@ -289,7 +289,7 @@ begin
              and t.group_id = v_from.group_id
              and t.assignee_id = v_from.id
              and t.deleted_at is null
-             for update) l;
+             for no key update) l;
 
   if coalesce(cardinality(v_numbers), 0) <> cardinality(v_ids) then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'task_ids';

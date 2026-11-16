@@ -11,6 +11,13 @@
 --   rate_limited (P0001)
 -- join_group returns null for every refusal that must look the same
 -- (wrong code, full group, blocked account), see SECURITY.md section 4.
+--
+-- Row locks in every write function are FOR NO KEY UPDATE. No function
+-- changes a referenced key, and this mode does not conflict with the FOR KEY
+-- SHARE locks that foreign key checks take when rows are inserted (logs,
+-- tasks, messages...). FOR UPDATE does: a leader holding the group while an
+-- assignee's log insert waits on it, each holding what the other needs, is a
+-- deadlock. Lock order is group, then membership or task, then thread.
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers
@@ -43,16 +50,19 @@ as $$
 $$;
 
 -- Multi-line text: line endings normalized to \n, tabs and other control
--- characters removed, trimmed.
+-- characters removed, then surrounding whitespace (newlines included)
+-- trimmed. Line breaks inside the text are kept.
 create function private.clean_block(p_text text)
 returns text
 language sql
 immutable
 set search_path = ''
 as $$
-  select btrim(regexp_replace(
-    regexp_replace(p_text, '\r\n?', E'\n', 'g'),
-    '[\u0001-\u0009\u000B-\u001F\u007F]', '', 'g'));
+  select regexp_replace(
+    regexp_replace(
+      regexp_replace(p_text, '\r\n?', E'\n', 'g'),
+      '[\u0001-\u0009\u000B-\u001F\u007F]', '', 'g'),
+    '^\s+|\s+$', '', 'g');
 $$;
 
 create function private.normalize_join_code(p_code text)
@@ -77,7 +87,7 @@ declare
   v_me public.memberships;
 begin
   if p_lock_group then
-    perform 1 from public.groups g where g.id = p_group_id for update;
+    perform 1 from public.groups g where g.id = p_group_id for no key update;
   end if;
 
   select m.* into v_me
@@ -118,7 +128,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform 1 from public.profiles p where p.id = p_user_id for update;
+  perform 1 from public.profiles p where p.id = p_user_id for no key update;
   if not found then
     raise exception 'not_authenticated' using errcode = 'insufficient_privilege';
   end if;
@@ -250,16 +260,19 @@ declare
   v_seat int;
   v_member_id uuid;
 begin
+  -- Locks the caller's profile row, which serializes this account's joins.
+  -- Before the code lookup, so this error cannot be used to probe codes.
+  perform private.check_membership_cap(v_uid);
+
+  -- After that lock, so parallel attempts each see the failures committed
+  -- before them and cannot all pass at nine.
   if private.rate_limit_used('join_failed', interval '1 hour') >= 10 then
     raise exception 'rate_limited' using errcode = 'P0001';
   end if;
 
-  -- Before the code lookup, so this error cannot be used to probe codes.
-  perform private.check_membership_cap(v_uid);
-
   if v_code ~ '^[A-Z]{8}$' then
     -- The lock serializes joins, so two callers cannot both take the last seat.
-    select g.* into v_group from public.groups g where g.join_code = v_code for update;
+    select g.* into v_group from public.groups g where g.join_code = v_code for no key update;
   end if;
 
   if v_group.id is not null then
@@ -399,7 +412,7 @@ begin
   end if;
   v_me := private.caller_leader_seat(v_group_id);
 
-  select m.* into v_target from public.memberships m where m.id = p_member_id for update;
+  select m.* into v_target from public.memberships m where m.id = p_member_id for no key update;
   if v_target.status <> 'active' or v_target.id = v_me.id then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'member_id';
   end if;
@@ -451,7 +464,7 @@ begin
   end if;
   v_me := private.caller_leader_seat(v_group_id);
 
-  select m.* into v_target from public.memberships m where m.id = p_member_id for update;
+  select m.* into v_target from public.memberships m where m.id = p_member_id for no key update;
   if v_target.status <> 'active' or v_target.id = v_me.id then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'member_id';
   end if;

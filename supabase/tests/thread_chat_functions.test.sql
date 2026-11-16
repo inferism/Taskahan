@@ -8,7 +8,7 @@ set search_path = public, extensions;
 delete from public.groups;
 delete from auth.users;
 
-select plan(42);
+select plan(47);
 
 create function pg_temp.as_user(p_id uuid) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -85,6 +85,13 @@ select throws_ok(
   format($$ select public.open_question(%L, '  ') $$, pg_temp.id('t1')),
   '22023', 'invalid_input', 'an empty question is refused');
 select throws_ok(
+  format($$ select public.open_question(%L, E'\n \r\n\n') $$, pg_temp.id('t1')),
+  '22023', 'invalid_input', 'a newline-only question is refused');
+select is(pg_temp.open_count(1), 2, 'a refused blank question does not block the task');
+select is(
+  (select body from public.open_question(pg_temp.id('t2'), E'\n\n  Line one\n\nLine two \n')),
+  E'Line one\n\nLine two', 'surrounding newlines are trimmed, inner ones kept');
+select throws_ok(
   format($$ select public.open_question(%L, repeat('a', 1001)) $$, pg_temp.id('t1')),
   '22023', 'invalid_input', 'a question over 1000 characters is refused');
 select throws_ok(
@@ -134,6 +141,9 @@ select is(
 select throws_ok(
   format($$ select public.reply_to_question(%L, '') $$, pg_temp.id('th1')),
   '22023', 'invalid_input', 'an empty reply is refused');
+select throws_ok(
+  format($$ select public.reply_to_question(%L, E'\n\n') $$, pg_temp.id('th1')),
+  '22023', 'invalid_input', 'a newline-only reply is refused');
 select pg_temp.as_user('00000000-0000-0000-0000-000000000205');
 select throws_ok(
   format($$ select public.reply_to_question(%L, 'Outsider') $$, pg_temp.id('th1')),
@@ -219,6 +229,9 @@ select is(
 select throws_ok(
   format($$ select public.send_message(%L, '   ') $$, pg_temp.id('g')),
   '22023', 'invalid_input', 'an empty message is refused');
+select throws_ok(
+  format($$ select public.send_message(%L, E' \n\t\n ') $$, pg_temp.id('g')),
+  '22023', 'invalid_input', 'a newline-only message is refused');
 select throws_ok(
   format($$ select public.send_message(%L, repeat('a', 1001)) $$, pg_temp.id('g')),
   '22023', 'invalid_input', 'a message over 1000 characters is refused');
