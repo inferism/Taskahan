@@ -90,6 +90,28 @@ describe('board shell', () => {
     expect(header(ben)).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('expands a collapsed column when any part of it is clicked', async () => {
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByText('Survey ten students'))
+    expect(within(cara).getAllByRole('button')[0]).toHaveAttribute('aria-expanded', 'true')
+    expect(
+      within(screen.getByRole('region', { name: "ana's tasks" })).getAllByRole('button')[0],
+    ).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('folds Done to a count until opened', async () => {
+    setWidth(1440)
+    renderBoard()
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    const done = within(ben).getByRole('button', { name: 'Done · 1' })
+    expect(done).toHaveAttribute('aria-expanded', 'false')
+    expect(within(ben).queryByText('Draft the problem statement')).not.toBeVisible()
+    await userEvent.click(done)
+    expect(within(ben).getByText('Draft the problem statement')).toBeVisible()
+  })
+
   it('hides Logs from a member and puts their own column first', async () => {
     rpc.mockResolvedValue({ data: seedBoardAsBen, error: null })
     setWidth(1440)

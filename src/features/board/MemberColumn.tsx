@@ -1,4 +1,5 @@
-import { forwardRef } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import { forwardRef, useState } from 'react'
 import { Avatar, cn, StatusGlyph } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
 import { deadlineSections, progressOf, progressText, shownStatus } from './selectors'
@@ -22,7 +23,8 @@ function statusLine(member: Member, isMe: boolean): string {
 
 /**
  * One member's column: scoreboard header, progress bar, tasks under deadline headings.
- * The frame and widths belong to the board shell (4.2); the full column is task 4.3.
+ * The frame and widths belong to the board shell (4.2). Collapsed columns expand on any click;
+ * Done is folded to a count until opened.
  */
 export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function MemberColumn(
   { member, tasks, isMe, expanded, fullWidth, now, onExpand },
@@ -33,19 +35,22 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
   const p = progressOf(tasks)
   const pct = (n: number) => (p.total === 0 ? 0 : (n / p.total) * 100)
   const sections = deadlineSections(tasks, now)
+  const [doneOpen, setDoneOpen] = useState(false)
+  const collapsed = !fullWidth && !expanded
 
   return (
     <section
       ref={ref}
       aria-label={`${member.display_name}'s tasks`}
       data-member={member.id}
+      onClick={collapsed ? onExpand : undefined}
       className={cn(
         'flex min-h-0 shrink-0 flex-col overflow-hidden bg-surface',
         fullWidth
           ? 'h-full w-full snap-start snap-always'
           : cn(
               'max-h-full rounded-lg border border-line transition-[width] duration-200',
-              expanded ? 'w-[408px]' : 'w-[248px]',
+              expanded ? 'w-[408px]' : 'w-[248px] cursor-pointer hover:bg-sunken',
             ),
       )}
     >
@@ -89,22 +94,43 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
         {sections.length === 0 ? (
           <p className="pt-3 text-body text-muted">No tasks yet.</p>
         ) : (
-          sections.map((s) => (
-            <div key={s.group} className="pt-4">
-              <h3 className="pb-1 font-display text-[0.8125rem] font-bold uppercase tracking-[0.1em] text-muted">
-                {s.label}
-              </h3>
-              <ul>
-                {s.tasks.map((t) => (
-                  <li key={t.id} className="flex min-h-11 items-center gap-2 py-1">
-                    <StatusGlyph status={shownStatus(t)} />
-                    <span className="text-label text-muted">#{t.number}</span>
-                    <span className="min-w-0 flex-1 truncate text-body">{t.title}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
+          sections.map((s) => {
+            const folded = s.group === 'done' && !doneOpen
+            const heading =
+              'font-display text-[0.8125rem] font-bold uppercase tracking-[0.1em] text-muted'
+            return (
+              <div key={s.group} className="pt-4">
+                {s.group === 'done' ? (
+                  <h3 className="pb-1">
+                    <button
+                      type="button"
+                      aria-expanded={!folded}
+                      onClick={() => setDoneOpen(!doneOpen)}
+                      className={cn(heading, 'flex min-h-11 items-center gap-1 rounded-md')}
+                    >
+                      {folded ? (
+                        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+                      ) : (
+                        <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
+                      )}
+                      {s.label} · {s.tasks.length}
+                    </button>
+                  </h3>
+                ) : (
+                  <h3 className={cn(heading, 'pb-1')}>{s.label}</h3>
+                )}
+                <ul hidden={folded}>
+                  {s.tasks.map((t) => (
+                    <li key={t.id} className="flex min-h-11 items-center gap-2 py-1">
+                      <StatusGlyph status={shownStatus(t)} />
+                      <span className="text-label text-muted">#{t.number}</span>
+                      <span className="min-w-0 flex-1 truncate text-body">{t.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })
         )}
       </div>
     </section>
