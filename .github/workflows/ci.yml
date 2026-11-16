@@ -52,6 +52,12 @@ jobs:
           export E2E_SUPABASE_URL="$API_URL"
           export E2E_SUPABASE_KEY="${PUBLISHABLE_KEY:-$ANON_KEY}"
           npm run test:e2e
+      - name: Run the performance check (throttled 4G, production build)
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export E2E_SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_KEY="${PUBLISHABLE_KEY:-$ANON_KEY}"
+          npm run test:perf
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

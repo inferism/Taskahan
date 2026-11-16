@@ -6,7 +6,6 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { HomePage } from '@/features/home/HomePage'
 import { BoardPage } from '@/features/board/BoardPage'
-import { SettingsPage } from '@/features/profile/SettingsPage'
 
 const appRoutes: RouteObject[] = [
   {
@@ -22,7 +21,13 @@ const appRoutes: RouteObject[] = [
       { path: '/', element: <HomePage /> },
       { path: '/g/:groupId', element: <BoardPage /> },
       { path: '/g/:groupId/t/:number', element: <BoardPage /> },
-      { path: '/settings', element: <SettingsPage /> },
+      // Settings carries the avatar cropper, which the board never needs on first paint.
+      {
+        path: '/settings',
+        lazy: async () => ({
+          Component: (await import('@/features/profile/SettingsPage')).SettingsPage,
+        }),
+      },
     ],
   },
   ...(import.meta.env.DEV ? [{ path: '/dev/ui', element: <Gallery /> }] : []),
