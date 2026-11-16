@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { groupsKey } from '@/features/home/api'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/ui'
 import type { Database } from '@/lib/database.types'
 
 type Enums = Database['public']['Enums']
@@ -111,8 +112,18 @@ export function patchTask(
   void queryClient.invalidateQueries({ queryKey: groupsKey })
 }
 
+/** Patch a task's status in place, as the optimistic write and its rollback both need. */
+export function withStatus(board: Board, taskId: string, status: Task['status']): Board {
+  return { ...board, tasks: board.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) }
+}
+
+/**
+ * Status change, applied to the cache before the server answers. A rejected write puts the
+ * previous status back and says so in a toast; a good one replaces the guess with the real row.
+ */
 export function useSetTaskStatus(groupId: string) {
   const queryClient = useQueryClient()
+  const toast = useToast()
   return useMutation({
     mutationFn: async (v: { taskId: string; status: Task['status'] }) => {
       const { data, error } = await supabase.rpc('set_task_status', {
@@ -121,6 +132,22 @@ export function useSetTaskStatus(groupId: string) {
       })
       if (error) throw error
       return data as unknown as Task
+    },
+    onMutate: async (v) => {
+      // A refetch landing now would overwrite the guess with the old status.
+      await queryClient.cancelQueries({ queryKey: boardKey(groupId) })
+      const previous = queryClient.getQueryData<Board>(boardKey(groupId))
+      const was = previous?.tasks.find((t) => t.id === v.taskId)?.status
+      if (previous)
+        queryClient.setQueryData(boardKey(groupId), withStatus(previous, v.taskId, v.status))
+      return { was }
+    },
+    onError: (_error, v, context) => {
+      // Undo only this task: other events may have patched the board since.
+      const board = queryClient.getQueryData<Board>(boardKey(groupId))
+      if (board && context?.was)
+        queryClient.setQueryData(boardKey(groupId), withStatus(board, v.taskId, context.was))
+      toast('Could not change the status. It was put back.')
     },
     onSuccess: (task) => patchTask(queryClient, groupId, task),
   })

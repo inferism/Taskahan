@@ -252,6 +252,8 @@ describe('task details and status', () => {
     )
     await userEvent.click(within(cara).getByRole('radio', { name: 'Done' }))
     expect(await within(cara).findByRole('alert')).toHaveTextContent('Could not change the status')
+    // The guess is gone: the task is back where it was.
+    expect(within(cara).queryByRole('button', { name: /Done · / })).not.toBeInTheDocument()
     await userEvent.click(within(cara).getByRole('button', { name: 'Retry' }))
     expect(await within(cara).findByRole('button', { name: 'Done · 1' })).toBeInTheDocument()
   })
@@ -553,8 +555,10 @@ describe('review fixes', () => {
     await userEvent.click(within(cara).getByRole('radio', { name: 'To do' }))
     expect(rpc.mock.calls.filter(([n]) => n === 'set_task_status')).toHaveLength(1)
     answer(undefined)
-    expect(await within(cara).findByRole('button', { name: /Done · 1/ })).toBeInTheDocument()
-    for (const radio of within(cara).getAllByRole('radio')) expect(radio).toBeEnabled()
+    await waitFor(() => {
+      for (const radio of within(cara).getAllByRole('radio')) expect(radio).toBeEnabled()
+    })
+    expect(within(cara).getByRole('button', { name: /Done · 1/ })).toBeInTheDocument()
   })
 
   it('unfolds Done when a link opens a finished task', async () => {
