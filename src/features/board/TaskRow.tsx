@@ -64,7 +64,10 @@ export function TaskRow({
         <StatusGlyph status={shown} />
         <span className="text-label text-muted">#{task.number}</span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-body">{task.title}</span>
+          {/* One line in the list; the whole title once the task is open. */}
+          <span className={cn('text-body', open ? '[overflow-wrap:anywhere]' : 'truncate')}>
+            {task.title}
+          </span>
           {label && (
             <span
               className={cn('truncate text-label', label.alert ? 'text-blocked' : 'text-muted')}

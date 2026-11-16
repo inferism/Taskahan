@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Dialog, DialogClose, Input } from '@/ui'
 import { errorKey, groupsKey } from './api'
 import { codeError, normalizeCode } from './codes'
+import { useLatestRequest } from './useLatestRequest'
 
 export function JoinGroupDialog({
   open,
@@ -18,9 +19,12 @@ export function JoinGroupDialog({
   const [code, setCode] = useState('')
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const request = useLatestRequest()
 
   function reset(next: boolean) {
     if (!next) {
+      request.cancel()
+      setBusy(false)
       setCode('')
       setError(undefined)
     }
@@ -36,9 +40,15 @@ export function JoinGroupDialog({
       return
     }
     setBusy(true)
+    const isCurrent = request.begin()
     const { data, error: err } = await supabase.rpc('join_group', {
       p_join_code: normalizeCode(code),
     })
+    if (!isCurrent()) {
+      // Cancelled while waiting: list a group joined anyway, but stay where the user is.
+      if (!err && data) void queryClient.invalidateQueries({ queryKey: groupsKey })
+      return
+    }
     setBusy(false)
     if (err) {
       const key = errorKey(err)

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button, Dialog, DialogClose, Input, Select } from '@/ui'
 import { errorKey, groupsKey, purposeLabels, type GroupPurpose } from './api'
 import { codeError, normalizeCode, randomCode } from './codes'
+import { useLatestRequest } from './useLatestRequest'
 
 const purposeOptions = (Object.keys(purposeLabels) as GroupPurpose[]).map((value) => ({
   value,
@@ -33,6 +34,7 @@ export function CreateGroupDialog({
   const [touched, setTouched] = useState(false)
   const [serverError, setServerError] = useState<{ field: string; message: string }>()
   const [busy, setBusy] = useState(false)
+  const request = useLatestRequest()
 
   const nameProblem = name.trim() ? undefined : 'Give the group a name'
   const codeProblem = codeError(code)
@@ -42,6 +44,8 @@ export function CreateGroupDialog({
 
   function reset(next: boolean) {
     if (!next) {
+      request.cancel()
+      setBusy(false)
       setName('')
       setPurpose('student_project')
       setNote('')
@@ -59,6 +63,7 @@ export function CreateGroupDialog({
     setTouched(true)
     if (nameProblem || codeProblem || limitProblem) return
     setBusy(true)
+    const isCurrent = request.begin()
     const { data, error } = await supabase.rpc('create_group', {
       p_name: name,
       p_purpose: purpose,
@@ -66,6 +71,11 @@ export function CreateGroupDialog({
       p_member_limit: Number(limit),
       p_join_code: normalizeCode(code),
     })
+    if (!isCurrent()) {
+      // Cancelled while waiting: list a group that was made anyway, but stay where the user is.
+      if (!error && data) void queryClient.invalidateQueries({ queryKey: groupsKey })
+      return
+    }
     setBusy(false)
     if (error || !data) {
       const key = errorKey(error)

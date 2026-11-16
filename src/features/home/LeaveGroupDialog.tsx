@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Button, Dialog, DialogClose } from '@/ui'
 import { errorKey, groupsKey, type HomeGroup } from './api'
+import { useLatestRequest } from './useLatestRequest'
 
 /**
  * A leader with other active members must hand over leadership first (the database
@@ -20,12 +21,17 @@ export function LeaveGroupDialog({
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const request = useLatestRequest()
 
   const mustTransfer = group?.role === 'leader' && group.memberCount > 1
   const lastMember = group?.role === 'leader' && group.memberCount <= 1
 
   function close(next: boolean) {
-    if (!next) setError(undefined)
+    if (!next) {
+      request.cancel()
+      setBusy(false)
+      setError(undefined)
+    }
     onOpenChange(next)
   }
 
@@ -33,7 +39,13 @@ export function LeaveGroupDialog({
     if (!group) return
     setError(undefined)
     setBusy(true)
+    const isCurrent = request.begin()
     const { error: err } = await supabase.rpc('leave_group', { p_group_id: group.id })
+    if (!isCurrent()) {
+      // Cancelled while waiting: drop a group left anyway from the list, nothing more.
+      if (!err) void queryClient.invalidateQueries({ queryKey: groupsKey })
+      return
+    }
     setBusy(false)
     if (err) {
       setError(
