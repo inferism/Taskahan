@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { AuthProvider } from './auth'
 import { ErrorBoundary } from './ErrorBoundary'
-import { routes } from './router'
+import { routes, withErrorElement } from './router'
 
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }))
 
@@ -42,6 +42,17 @@ describe('auth guard', () => {
 })
 
 describe('error boundary', () => {
+  it('shows the recovery screen when a route throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const Boom = () => {
+      throw new Error('boom')
+    }
+    const router = createMemoryRouter(withErrorElement([{ path: '/', element: <Boom /> }]))
+    render(<RouterProvider router={router} />)
+    expect(await screen.findByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument()
+  })
+
   it('shows a recovery screen when a child throws', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const Boom = () => {

@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
           className={cn(
             'h-11 px-3 text-body font-semibold text-ink transition-colors duration-[120ms] sm:h-10',
             'not-first:border-l not-first:border-ink',
-            'hover:bg-sunken data-[state=on]:bg-yellow data-[state=on]:hover:bg-yellow-hover',
+            'hover:bg-sunken data-[state=on]:bg-yellow data-[state=on]:text-on-yellow data-[state=on]:hover:bg-yellow-hover',
             'disabled:opacity-45',
           )}
         >

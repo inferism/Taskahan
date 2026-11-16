@@ -4,6 +4,8 @@
   --court-deep: #08463a;
   --scoreboard-yellow: #ffc42e;
   --scoreboard-yellow-hover: #f2b51b;
+  /* Text on yellow. Stays dark in both themes. */
+  --on-yellow: #13211c;
   --ground: #eef2ee;
   --surface: #ffffff;
   --surface-sunken: #f4f6f4;

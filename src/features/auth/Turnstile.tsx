@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/ui'
 
 interface TurnstileApi {
   render: (el: HTMLElement, opts: Record<string, unknown>) => string
@@ -43,6 +44,8 @@ export function Turnstile({ onToken }: Props) {
     cb.current = onToken
   })
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (!siteKey || !host.current) return
@@ -58,13 +61,33 @@ export function Turnstile({ onToken }: Props) {
           'error-callback': () => cb.current(null),
         })
       })
-      .catch(() => cb.current(null))
+      .catch(() => {
+        cb.current(null)
+        if (!gone) setFailed(true)
+      })
     return () => {
       gone = true
       if (id) window.turnstile?.remove(id)
     }
-  }, [siteKey])
+  }, [siteKey, attempt])
 
   if (!siteKey) return null
-  return <div ref={host} className="min-h-[65px]" />
+  return (
+    <div>
+      <div ref={host} className="min-h-[65px]" hidden={failed} />
+      {failed && (
+        <div role="alert" className="flex items-center gap-3 text-label">
+          <span className="text-blocked">The bot check could not load.</span>
+          <Button
+            onClick={() => {
+              setFailed(false)
+              setAttempt((a) => a + 1)
+            }}
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+    </div>
+  )
 }

@@ -1,11 +1,12 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { Gallery } from '@/ui/Gallery'
 import { AuthGuard, GuestOnly } from './AuthGuard'
+import { RouteError } from './ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { BoardPage, HomePage, SettingsPage } from './pages'
 
-export const routes: RouteObject[] = [
+const appRoutes: RouteObject[] = [
   {
     element: <GuestOnly />,
     children: [
@@ -25,3 +26,10 @@ export const routes: RouteObject[] = [
   ...(import.meta.env.DEV ? [{ path: '/dev/ui', element: <Gallery /> }] : []),
   { path: '*', element: <Navigate to="/" replace /> },
 ]
+
+/** Every route sits under one error element so a screen crash shows the recovery screen. */
+export function withErrorElement(children: RouteObject[]): RouteObject[] {
+  return [{ errorElement: <RouteError />, children }]
+}
+
+export const routes = withErrorElement(appRoutes)

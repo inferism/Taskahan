@@ -11,6 +11,7 @@
   --color-court-deep: var(--court-deep);
   --color-yellow: var(--scoreboard-yellow);
   --color-yellow-hover: var(--scoreboard-yellow-hover);
+  --color-on-yellow: var(--on-yellow);
   --color-ground: var(--ground);
   --color-surface: var(--surface);
   --color-sunken: var(--surface-sunken);

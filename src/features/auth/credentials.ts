@@ -12,7 +12,10 @@ export function usernameError(raw: string): string | undefined {
 }
 
 export function passwordError(password: string, username: string): string | undefined {
-  if (password.length < 8 || password.length > 72) return 'Use 8 to 72 characters'
+  // Supabase Auth caps passwords at 72 bytes; accented letters and emoji take 2 to 4 each.
+  if (password.length < 8) return 'Use at least 8 characters'
+  if (new TextEncoder().encode(password).length > 72)
+    return 'Too long. Use at most 72 characters (fewer with accents or emoji)'
   if (password.toLowerCase() === username.trim().toLowerCase())
     return 'Choose a password different from your username'
 }
