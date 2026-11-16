@@ -25,7 +25,7 @@ export function StatusGlyph({ status, size = 20 }: { status: TaskStatus; size?: 
           <path
             d="M5.5 10.5l3 3 6-6.5"
             fill="none"
-            stroke="#fff"
+            stroke="var(--on-status)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -50,7 +50,7 @@ export function StatusGlyph({ status, size = 20 }: { status: TaskStatus; size?: 
             textAnchor="middle"
             fontSize="13"
             fontWeight="700"
-            fill="#fff"
+            fill="var(--on-status)"
             fontFamily="Barlow, system-ui, sans-serif"
           >
             ?

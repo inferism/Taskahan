@@ -21,6 +21,7 @@ import { useLayout } from '@/lib/useLayout'
 import { useNow } from '@/lib/useNow'
 import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
+import { useReconnecting } from '@/realtime/live'
 import { Avatar, Button, cn } from '@/ui'
 import {
   avatarUrl,
@@ -114,6 +115,7 @@ function BoardShell({
 }) {
   useGroupChannel(board.group.id, board.me)
   const online = usePresence(board)
+  const reconnecting = useReconnecting(board.group.id)
   const layout = useLayout()
   const members = useMemo(() => columnMembers(board), [board])
   const byMember = useMemo(() => tasksByMember(board), [board])
@@ -285,6 +287,14 @@ function BoardShell({
         onAddTask={leader ? () => setEditor('new') : undefined}
         onSettings={leader ? () => setSettingsOpen(true) : undefined}
       />
+      {reconnecting && (
+        <p
+          role="status"
+          className="shrink-0 border-b border-line bg-sunken px-4 py-1 text-body text-muted"
+        >
+          Reconnecting…
+        </p>
+      )}
       {refreshFailed && (
         <p
           role="alert"

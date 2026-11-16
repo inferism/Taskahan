@@ -3,6 +3,7 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 import { useEffect } from 'react'
 import { boardKey, type Board } from '@/features/board/api'
 import { supabase } from '@/lib/supabase'
+import { flashTask, setReconnecting } from './live'
 import { clearOnline, onlineMembers, setOnline } from './presence'
 import { applyGroupRow, applyMemberRow, applyTaskRow, needsSnapshot } from './changes'
 
@@ -35,6 +36,7 @@ export function applyChange(queryClient: QueryClient, groupId: string, table: Ta
       if (!board) return
       const patch =
         table === 'tasks' ? applyTaskRow : table === 'memberships' ? applyMemberRow : applyGroupRow
+      if (table === 'tasks' && rowChanged(board, row)) flashTask(row.id as string)
       queryClient.setQueryData<Board>(boardKey(groupId), patch(board, row))
       if (needsSnapshot(board, table, row))
         void queryClient.invalidateQueries({ queryKey: boardKey(groupId) })
@@ -48,6 +50,29 @@ export function applyChange(queryClient: QueryClient, groupId: string, table: Ta
       void queryClient.invalidateQueries({ queryKey: threadsKey(groupId) })
       return
   }
+}
+
+/** Fields a task row shows. Our own status change is already in the cache, so its echo is equal. */
+const shownFields = ['title', 'status', 'open_questions', 'deadline', 'assignee_id'] as const
+
+/** A known task changed in a way its row shows: the board washes that row. */
+function rowChanged(board: Board, row: Row): boolean {
+  const cached = board.tasks.find((t) => t.id === row.id)
+  if (!cached || row.deleted_at) return false
+  if (
+    typeof row.updated_at === 'string' &&
+    Date.parse(row.updated_at) < Date.parse(cached.updated_at)
+  )
+    return false
+  return shownFields.some((f) => {
+    const next = row[f]
+    const prev = cached[f]
+    if (next === undefined) return false
+    // Timestamps arrive in more than one spelling ("Z" or "+00:00"); compare the instant.
+    if (f === 'deadline' && typeof next === 'string' && typeof prev === 'string')
+      return Date.parse(next) !== Date.parse(prev)
+    return next !== prev
+  })
 }
 
 /** After a (re)subscribe: everything may have changed while no events arrived. */
@@ -85,8 +110,10 @@ function openChannel(
   // would reach neither the event stream nor a snapshot fetched at SUBSCRIBED.
   channel.on('system', {}, (msg: { extension?: string; status?: string; message?: string }) => {
     if (msg.extension !== 'postgres_changes') return
-    if (msg.status === 'ok') refetchGroup(queryClient, groupId)
-    else console.warn('Realtime changes unavailable:', msg.message)
+    if (msg.status === 'ok') {
+      setReconnecting(groupId, false)
+      refetchGroup(queryClient, groupId)
+    } else console.warn('Realtime changes unavailable:', msg.message)
   })
   // Presence: announce this connection, and mirror who is here into the presence store.
   channel.on('presence', { event: 'sync' }, () =>
@@ -95,6 +122,8 @@ function openChannel(
   channel.subscribe((status) => {
     // Tracking is lost with the connection, so announce again on every (re)subscribe.
     if (status === 'SUBSCRIBED' && memberId) void channel.track({ member_id: memberId })
+    // The client rejoins by itself; the board says so until the change stream is live again.
+    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setReconnecting(groupId, true)
   })
   return channel
 }
@@ -133,6 +162,7 @@ export function acquireGroupChannel(
       if (mine.users > 0 || entries.get(groupId) !== mine) return
       entries.delete(groupId)
       clearOnline(groupId)
+      setReconnecting(groupId, false)
       const done = mine.channel.then((channel) => supabase.removeChannel(channel))
       const settled = done
         .catch(() => undefined)

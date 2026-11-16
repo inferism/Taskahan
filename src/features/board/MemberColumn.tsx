@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { forwardRef, useState, type ReactNode } from 'react'
 import { MemberMenu, type MemberAction } from '@/features/members/MemberMenu'
-import { Avatar, Button, cn } from '@/ui'
+import { Avatar, Button, StatusGlyph, cn } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
 import { deadlineSections, progressOf, progressText } from './selectors'
 import { TaskRow } from './TaskRow'
@@ -141,9 +141,12 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
               </span>
               <span className="text-label text-muted">{statusLine(member, isMe, online)}</span>
             </span>
-            <span className="font-display text-tally font-bold" aria-label={progressText(p)}>
-              {p.done}
-              <span className="text-name text-muted">/{p.total}</span>
+            <span className="font-display text-tally font-bold">
+              <span className="sr-only">{progressText(p)}</span>
+              <span aria-hidden>
+                <Tally value={p.done} />
+                <span className="text-name text-muted">/{p.total}</span>
+              </span>
             </span>
           </button>
           {onManage && <MemberMenu member={member} onAction={onManage} />}
@@ -152,9 +155,15 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
           <div className="bg-done" style={{ width: `${pct(p.done)}%` }} />
           <div className="bg-yellow" style={{ width: `${pct(p.inProgress)}%` }} />
         </div>
-        <p className="text-label text-muted">
+        <p className="flex items-center gap-1 text-label text-muted">
           {progressText(p)}
-          {p.blocked > 0 && ` · ${p.blocked} blocked`}
+          {p.blocked > 0 && (
+            <>
+              {' · '}
+              <StatusGlyph status="blocked" size={12} />
+              {p.blocked} blocked
+            </>
+          )}
         </p>
       </header>
 
@@ -218,3 +227,19 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     </section>
   )
 })
+
+/**
+ * The done count in the scoreboard header. When it changes, the new digit rolls up (a task was
+ * finished) or down (one was reopened), live for everyone; reduced motion swaps it in place.
+ */
+function Tally({ value }: { value: number }) {
+  const [shown, setShown] = useState({ value, dir: '' as '' | 'up' | 'down' })
+  if (value !== shown.value) setShown({ value, dir: value > shown.value ? 'up' : 'down' })
+  return (
+    <span className="inline-flex overflow-hidden align-bottom">
+      <span key={shown.value} className={shown.dir && `tally-${shown.dir}`}>
+        {shown.value}
+      </span>
+    </span>
+  )
+}

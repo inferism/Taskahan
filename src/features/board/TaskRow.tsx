@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react'
+import { useTaskFlash } from '@/realtime/live'
 import { SegmentedControl, Button, StatusGlyph, cn, statusLabel } from '@/ui'
 import type { Task } from './api'
 import { shownStatus, taskLabel } from './selectors'
@@ -52,8 +53,17 @@ export function TaskRow({
   const label = taskLabel(task, now)
   const shown = shownStatus(task)
   const panelId = useId()
+  const flash = useTaskFlash(task.id)
   return (
-    <li data-task={task.id}>
+    <li data-task={task.id} className="relative">
+      {flash > 0 && (
+        // Remounted on every new change so the wash plays again.
+        <span
+          key={flash}
+          aria-hidden
+          className="wash pointer-events-none absolute inset-0 rounded-md"
+        />
+      )}
       <button
         type="button"
         aria-expanded={open}
@@ -79,7 +89,7 @@ export function TaskRow({
       </button>
       <div id={panelId} role="group" aria-label={`Task #${task.number} details`} hidden={!open}>
         {open && (
-          <div className="flex flex-col gap-3 border-l-2 border-line py-2 pl-3">
+          <div className="mb-2 flex flex-col gap-3 rounded-md bg-sunken p-3">
             {canSetStatus ? (
               <SegmentedControl
                 label={`Status of task #${task.number}`}

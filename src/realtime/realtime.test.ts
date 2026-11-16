@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { boardKey, type Board } from '@/features/board/api'
 import { seedBoard } from '@/features/board/seed.fixture'
 import { applyGroupRow, applyMemberRow, applyTaskRow } from './changes'
+import { isReconnecting, taskFlash } from './live'
 import { getOnline, onlineMembers } from './presence'
 
 const { channels, removeChannel } = vi.hoisted(() => ({
@@ -158,6 +159,40 @@ describe('group channel manager', () => {
       'messages group_id=eq.capstone',
       'groups id=eq.capstone',
     ])
+    release()
+    await flush()
+  })
+
+  it('washes a row only when a change alters what it shows', async () => {
+    const qc = newClient()
+    qc.setQueryData(boardKey('capstone'), seedBoard)
+    const release = acquireGroupChannel(qc, 'capstone')
+    await flush()
+    const ch = channels[0]
+    const id = seedBoard.tasks[1].id
+    const before = taskFlash(id)
+    // An echo of what the cache already shows (our own optimistic write) does not wash.
+    ch.bindings[0].cb({ eventType: 'UPDATE', new: taskRow({ updated_at: '2026-11-17T00:00:00Z' }) })
+    expect(taskFlash(id)).toBe(before)
+    ch.bindings[0].cb({
+      eventType: 'UPDATE',
+      new: taskRow({ status: 'done', updated_at: '2026-11-17T00:00:01Z' }),
+    })
+    expect(taskFlash(id)).toBe(before + 1)
+    release()
+    await flush()
+  })
+
+  it('shows Reconnecting while the channel is down and clears it when changes are live', async () => {
+    const qc = newClient()
+    const release = acquireGroupChannel(qc, 'capstone')
+    await flush()
+    const ch = channels[0]
+    ch.status('CHANNEL_ERROR')
+    expect(isReconnecting('capstone')).toBe(true)
+    const system = ch.bindings.find((b) => b.type === 'system')!
+    system.cb({ extension: 'postgres_changes', status: 'ok' })
+    expect(isReconnecting('capstone')).toBe(false)
     release()
     await flush()
   })

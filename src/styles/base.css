@@ -22,6 +22,7 @@
   --color-done: var(--done);
   --color-done-text: var(--done-text);
   --color-blocked: var(--blocked);
+  --color-on-status: var(--on-status);
   --color-link: var(--link);
   --color-bar: var(--bar);
   --color-focus: var(--focus);
@@ -86,6 +87,46 @@
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
+  }
+}
+
+/* A row someone else just changed: a yellow wash at 30% that fades over 600ms. */
+@keyframes wash {
+  from {
+    background-color: color-mix(in srgb, var(--scoreboard-yellow) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.wash {
+  animation: wash 600ms ease-out;
+}
+
+/* The tally roll: the new done count slides in from below (up) or above (down) over 240ms. */
+@keyframes tally-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes tally-down {
+  from {
+    transform: translateY(-100%);
+  }
+}
+.tally-up {
+  animation: tally-up 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tally-down {
+  animation: tally-down 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Reduced motion: the tally simply changes and the wash does not play. State still updates. */
+@media (prefers-reduced-motion: reduce) {
+  .wash,
+  .tally-up,
+  .tally-down {
+    animation: none;
   }
 }
 

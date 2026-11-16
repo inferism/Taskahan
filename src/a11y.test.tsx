@@ -132,9 +132,14 @@ describe.each([
     ['blocked', 'surface'],
     ['on-yellow', 'scoreboard-yellow'],
     ['on-yellow', 'scoreboard-yellow-hover'],
+    // The destructive button's hover label and the blocked glyph's question mark.
+    ['on-status', 'blocked'],
   ]
   it.each(text)('%s on %s is at least 4.5:1', (fg, bg) => {
     expect(ratio(t[fg], t[bg])).toBeGreaterThanOrEqual(4.5)
+  })
+  it('the done check on its fill is at least 3:1', () => {
+    expect(ratio(t['on-status'], t.done)).toBeGreaterThanOrEqual(3)
   })
   it.each(['ground', 'surface'])('focus ring on %s is at least 3:1', (bg) => {
     expect(ratio(t.focus, t[bg])).toBeGreaterThanOrEqual(3)
