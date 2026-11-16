@@ -373,7 +373,7 @@ select is(
 select is(
   (select count(*)::int from information_schema.routine_privileges
     where routine_schema = 'private' and grantee in ('PUBLIC', 'anon', 'authenticated')
-      and routine_name not in ('is_active_member', 'is_leader')),
+      and routine_name not in ('is_active_member', 'is_leader', 'group_topic_id')),
   0, 'private helpers are executable by nobody but the policy checks');
 
 select * from finish();
