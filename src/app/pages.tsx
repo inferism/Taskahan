@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router'
 
 // Placeholder screens. Each is replaced by its feature task (4.x, ...).
 function Screen({ title, children }: { title: string; children?: ReactNode }) {
@@ -12,14 +11,3 @@ function Screen({ title, children }: { title: string; children?: ReactNode }) {
 }
 
 export const SettingsPage = () => <Screen title="Settings" />
-export function BoardPage() {
-  const { groupId, number } = useParams()
-  return (
-    <Screen title="Board">
-      <p>
-        Group {groupId}
-        {number ? `, task #${number}` : ''}
-      </p>
-    </Screen>
-  )
-}

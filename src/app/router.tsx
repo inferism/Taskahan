@@ -5,7 +5,8 @@ import { RouteError } from './ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { HomePage } from '@/features/home/HomePage'
-import { BoardPage, SettingsPage } from './pages'
+import { BoardPage } from '@/features/board/BoardPage'
+import { SettingsPage } from './pages'
 
 const appRoutes: RouteObject[] = [
   {
