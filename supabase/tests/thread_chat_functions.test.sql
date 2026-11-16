@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(37);
+select plan(42);
 
 create function pg_temp.as_user(p_id uuid) returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -25,7 +25,8 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000000202', 'chat_m1@users.taskahan.pages.dev'),
   ('00000000-0000-0000-0000-000000000203', 'chat_m2@users.taskahan.pages.dev'),
   ('00000000-0000-0000-0000-000000000204', 'chat_former@users.taskahan.pages.dev'),
-  ('00000000-0000-0000-0000-000000000205', 'chat_other@users.taskahan.pages.dev');
+  ('00000000-0000-0000-0000-000000000205', 'chat_other@users.taskahan.pages.dev'),
+  ('00000000-0000-0000-0000-000000000206', 'chat_other_m@users.taskahan.pages.dev');
 
 select pg_temp.as_user('00000000-0000-0000-0000-000000000201');
 insert into ids values ('g', public.create_group('Chat', 'work_team', null, 10, 'CHATTTTT'));
@@ -48,11 +49,12 @@ select case m.user_id
        end, m.id
   from public.memberships m;
 
--- Tasks #1 and #2 belong to M1, #3 to M2.
+-- Tasks #1 and #2 belong to M1, #3 to M2, #4 to the leader.
 select pg_temp.as_user('00000000-0000-0000-0000-000000000201');
 select public.create_task(pg_temp.id('g'), 'One', '', pg_temp.id('m1'), null);
 select public.create_task(pg_temp.id('g'), 'Two', '', pg_temp.id('m1'), null);
 select public.create_task(pg_temp.id('g'), 'Three', '', pg_temp.id('m2'), null);
+select public.create_task(pg_temp.id('g'), 'Four', '', pg_temp.id('lead'), null);
 insert into ids select 't' || number, id from public.tasks where group_id = pg_temp.id('g');
 
 -- ---------------------------------------------------------------------------
@@ -89,6 +91,9 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000000201');
 select throws_ok(
   format($$ select public.open_question(%L, 'Leader asks') $$, pg_temp.id('t1')),
   '42501', 'forbidden', 'the leader replies instead of asking');
+select throws_ok(
+  format($$ select public.open_question(%L, 'Own task') $$, pg_temp.id('t4')),
+  '42501', 'forbidden', 'the leader cannot ask even on their own task');
 select pg_temp.as_user('00000000-0000-0000-0000-000000000205');
 select throws_ok(
   format($$ select public.open_question(%L, 'Outsider') $$, pg_temp.id('t1')),
@@ -117,6 +122,10 @@ select is(
   (select count(*)::int from public.logs where action = 'question_replied' and task_id = pg_temp.id('t1')),
   2, 'question_replied is logged');
 select is(pg_temp.open_count(1), 2, 'replying does not change the open count');
+select is(
+  (select meta from public.logs where action = 'question_replied' order by id desc limit 1),
+  jsonb_build_object('number', 1, 'thread_id', pg_temp.id('th1')),
+  'question_replied carries the task number');
 
 select throws_ok(
   format($$ select public.reply_to_question(%L, '') $$, pg_temp.id('th1')),
@@ -161,6 +170,9 @@ select is(pg_temp.open_count(1), 2, 'reopening counts it again');
 select is(
   (select count(*)::int from public.logs where action = 'question_reopened'),
   1, 'question_reopened is logged');
+select is(
+  (select meta->>'number' from public.logs where action = 'question_resolved' order by id desc limit 1),
+  '1', 'question_resolved carries the task number');
 
 select public.set_question_resolved(pg_temp.id('th1'), true);
 select public.set_question_resolved(pg_temp.id('th2'), true);
@@ -235,6 +247,27 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000000202');
 select throws_ok(
   format($$ select public.open_question(%L, 'Too fast') $$, pg_temp.id('t2')),
   'P0001', 'rate_limited', 'the 21st question or reply in a minute is refused');
+
+-- Deleting a group with open questions still cascades through the trigger.
+select pg_temp.as_user('00000000-0000-0000-0000-000000000206');
+select public.join_group('OTHERCCC');
+insert into ids select 'o_m', id from public.memberships
+ where group_id = pg_temp.id('g2') and user_id = '00000000-0000-0000-0000-000000000206';
+select pg_temp.as_user('00000000-0000-0000-0000-000000000205');
+insert into ids select 'o_t', id from public.create_task(pg_temp.id('g2'), 'Gone', '', pg_temp.id('o_m'), null);
+select pg_temp.as_user('00000000-0000-0000-0000-000000000206');
+insert into ids select 'o_th', id from public.open_question(pg_temp.id('o_t'), 'Will this survive?');
+select public.reply_to_question(pg_temp.id('o_th'), 'Self reply');
+select public.leave_group(pg_temp.id('g2'));
+select pg_temp.as_user('00000000-0000-0000-0000-000000000205');
+select lives_ok(
+  format($$ select public.leave_group(%L) $$, pg_temp.id('g2')),
+  'the last member leaving a group with questions deletes it');
+select is(
+  (select count(*)::int from public.threads where group_id = pg_temp.id('g2'))
+    + (select count(*)::int from public.thread_replies where group_id = pg_temp.id('g2'))
+    + (select count(*)::int from public.groups where id = pg_temp.id('g2')),
+  0, 'its group, threads and replies are gone');
 
 select * from finish();
 rollback;

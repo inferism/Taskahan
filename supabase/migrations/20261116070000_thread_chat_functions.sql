@@ -88,7 +88,8 @@ revoke all on function private.check_body(text) from public;
 revoke all on function private.live_thread_group(uuid) from public;
 
 -- ---------------------------------------------------------------------------
--- open_question: the assignee, on their own task
+-- open_question: the assignee, on their own task. The leader replies instead,
+-- even on a task assigned to themselves (SECURITY.md section 3).
 -- ---------------------------------------------------------------------------
 
 create function public.open_question(p_task_id uuid, p_body text)
@@ -108,7 +109,7 @@ begin
   select t.* into v_task from public.tasks t
    where t.id = p_task_id and t.deleted_at is null
      for update;
-  if not found or v_task.assignee_id <> v_me.id then
+  if not found or v_me.role = 'leader' or v_task.assignee_id <> v_me.id then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
 
@@ -139,9 +140,11 @@ declare
   v_me public.memberships := private.caller_seat(v_group_id);
   v_body text := private.check_body(p_body);
   v_thread public.threads;
+  v_number int;
   v_reply public.thread_replies;
 begin
   select th.* into v_thread from public.threads th where th.id = p_thread_id;
+  select t.number into v_number from public.tasks t where t.id = v_thread.task_id;
 
   perform private.rate_limit_take('question', 20, interval '1 minute');
 
@@ -150,7 +153,7 @@ begin
   returning * into v_reply;
 
   perform private.log(v_group_id, v_me.id, 'question_replied', v_thread.task_id, null,
-    jsonb_build_object('thread_id', p_thread_id));
+    jsonb_build_object('number', v_number, 'thread_id', p_thread_id));
   return v_reply;
 end;
 $$;
@@ -171,6 +174,7 @@ declare
   v_me public.memberships := private.caller_seat(v_group_id);
   v_old public.threads;
   v_thread public.threads;
+  v_number int;
 begin
   if p_resolved is null then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'resolved';
@@ -197,10 +201,11 @@ begin
     returning * into v_thread;
   end if;
 
+  select t.number into v_number from public.tasks t where t.id = v_thread.task_id;
   perform private.log(v_group_id, v_me.id,
     case when p_resolved then 'question_resolved' else 'question_reopened' end::public.log_action,
     v_thread.task_id, null,
-    jsonb_build_object('thread_id', p_thread_id));
+    jsonb_build_object('number', v_number, 'thread_id', p_thread_id));
   return v_thread;
 end;
 $$;
