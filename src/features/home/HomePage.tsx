@@ -5,6 +5,7 @@ import { Button } from '@/ui'
 import { purposeText, useGroups, type HomeGroup } from './api'
 import { CreateGroupDialog } from './CreateGroupDialog'
 import { JoinGroupDialog } from './JoinGroupDialog'
+import { LeaveGroupDialog } from './LeaveGroupDialog'
 
 function Progress({ done, total }: { done: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
@@ -27,7 +28,7 @@ function Progress({ done, total }: { done: number; total: number }) {
   )
 }
 
-function GroupRow({ group }: { group: HomeGroup }) {
+function GroupRow({ group, onLeave }: { group: HomeGroup; onLeave: () => void }) {
   return (
     <li className="flex flex-col gap-2 border-b border-line py-4 last:border-b-0">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -41,6 +42,14 @@ function GroupRow({ group }: { group: HomeGroup }) {
           {group.role === 'leader' ? 'Leader' : 'Member'} · {group.memberCount}{' '}
           {group.memberCount === 1 ? 'member' : 'members'}
         </span>
+        <Button
+          variant="quiet"
+          className="ml-auto"
+          aria-label={`Leave ${group.name}`}
+          onClick={onLeave}
+        >
+          Leave
+        </Button>
       </div>
       <Progress done={group.done} total={group.total} />
     </li>
@@ -51,6 +60,7 @@ export function HomePage() {
   const groups = useGroups()
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
+  const [leaving, setLeaving] = useState<HomeGroup | null>(null)
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -72,6 +82,7 @@ export function HomePage() {
       </div>
       <CreateGroupDialog open={creating} onOpenChange={setCreating} />
       <JoinGroupDialog open={joining} onOpenChange={setJoining} />
+      <LeaveGroupDialog group={leaving} onOpenChange={(open) => !open && setLeaving(null)} />
 
       {groups.isPending ? (
         <ul aria-busy="true" aria-label="Loading groups" className="flex flex-col gap-3">
@@ -91,7 +102,7 @@ export function HomePage() {
       ) : (
         <ul>
           {groups.data.map((g) => (
-            <GroupRow key={g.id} group={g} />
+            <GroupRow key={g.id} group={g} onLeave={() => setLeaving(g)} />
           ))}
         </ul>
       )}
