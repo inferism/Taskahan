@@ -11,6 +11,10 @@ import { seedBoard, seedBoardAsBen } from './seed.fixture'
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
 
+/** What the caller's own membership row reads, as `LeaveBoard` asks after a refusal. */
+const { ownSeat } = vi.hoisted(() => ({
+  ownSeat: vi.fn((): { data: unknown; error: null } => ({ data: null, error: null })),
+}))
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     rpc,
@@ -21,6 +25,7 @@ vi.mock('@/lib/supabase', () => ({
         is: () => chain,
         order: () => chain,
         range: () => chain,
+        maybeSingle: () => Promise.resolve(ownSeat()),
         then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
       }
       return chain
@@ -545,6 +550,19 @@ describe('review fixes', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: "ana's tasks" })).not.toBeInTheDocument()
     expect(client.getQueryData(['board', 'capstone'])).toBeUndefined()
+  })
+
+  it('says the member was removed when only their own row knows it', async () => {
+    const client = createQueryClient()
+    setWidth(1440)
+    renderBoard('/g/capstone', client)
+    await screen.findByRole('region', { name: "ana's tasks" })
+    ownSeat.mockReturnValueOnce({ data: { left_reason: 'removed' }, error: null })
+    rpc.mockResolvedValue({ data: null, error: { message: 'forbidden' } })
+    void client.invalidateQueries({ queryKey: ['board', 'capstone'] })
+    expect(
+      await screen.findByRole('heading', { name: /^Home You were removed from/ }),
+    ).toBeInTheDocument()
   })
 
   it('still explains a board that was never allowed', async () => {

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { GroupSettingsDialog } from '@/features/members/GroupSettingsDialog'
 import type { MemberAction } from '@/features/members/MemberMenu'
@@ -50,11 +51,10 @@ export function BoardPage() {
   // Forbidden is different: the caller has lost access, so the cached board must go too.
   const forbidden = board.isError && errorKey(board.error) === 'forbidden'
   // Access ended while the board was open (the membership flipped, or the server now refuses).
-  if (forbidden && board.data)
-    return <LeaveBoard groupId={groupId} notice={lostAccess(board.data)} />
+  if (forbidden && board.data) return <LeaveBoard groupId={groupId} board={board.data} />
   const seat = board.data && myMember(board.data)
   if (board.data && seat?.status === 'former')
-    return <LeaveBoard groupId={groupId} notice={lostAccess(board.data)} />
+    return <LeaveBoard groupId={groupId} board={board.data} />
   if (board.isError && (!board.data || forbidden)) {
     return (
       <BoardProblem
@@ -77,26 +77,49 @@ export function BoardPage() {
 }
 
 /** What to tell a member whose access ended, by how it ended. */
-function lostAccess(board: Board): string {
-  const seat = myMember(board)
-  const name = board.group.name
-  if (seat?.left_reason === 'removed') return `You were removed from ${name}.`
-  if (seat?.left_reason === 'left') return `You left ${name}.`
+function lostAccess(name: string, reason: Member['left_reason'] | undefined): string {
+  if (reason === 'removed') return `You were removed from ${name}.`
+  if (reason === 'left') return `You left ${name}.`
   return `You no longer have access to ${name}.`
 }
 
 /**
  * Leaves a board that is no longer the caller's: drops its caches (the unmount closes the
- * channel) and goes Home with a notice.
+ * channel) and goes Home with a notice. When the cache has not yet seen why access ended (the
+ * snapshot was refused before the membership change arrived), the caller's own membership row,
+ * which stays readable to them, says whether they left or were removed.
  */
-function LeaveBoard({ groupId, notice }: { groupId: string; notice: string }) {
+function LeaveBoard({ groupId, board }: { groupId: string; board: Board }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const name = board.group.name
+  const seatId = board.me
+  const known = myMember(board)?.left_reason
   useEffect(() => {
-    queryClient.removeQueries({ queryKey: boardKey(groupId) })
-    void queryClient.invalidateQueries({ queryKey: groupsKey })
-    navigate('/', { replace: true, state: { notice } })
-  }, [queryClient, navigate, groupId, notice])
+    let live = true
+    const why = async (): Promise<Member['left_reason'] | undefined> => {
+      if (known) return known
+      try {
+        const { data } = await supabase
+          .from('memberships')
+          .select('left_reason')
+          .eq('id', seatId)
+          .maybeSingle()
+        return data?.left_reason ?? undefined
+      } catch {
+        return undefined
+      }
+    }
+    void why().then((reason) => {
+      if (!live) return
+      queryClient.removeQueries({ queryKey: boardKey(groupId) })
+      void queryClient.invalidateQueries({ queryKey: groupsKey })
+      navigate('/', { replace: true, state: { notice: lostAccess(name, reason) } })
+    })
+    return () => {
+      live = false
+    }
+  }, [queryClient, navigate, groupId, name, seatId, known])
   return <BoardLoading />
 }
 

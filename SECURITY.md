@@ -175,17 +175,19 @@ Limits are enforced inside the write functions using the `rate_limits` table. Th
 
 ## 14. Checklist before launch
 
-- [ ] Every `public` table has row level security enabled (Supabase security advisor shows no warnings)
-- [ ] No insert, update or delete policy exists for `authenticated` or `anon`
-- [ ] pgTAP suite passes: outsider, member, former member and leader each tested against every table and every write function
-- [ ] Calling each write function with another group's ids fails
-- [ ] `logs` rejects UPDATE and DELETE from the service role
-- [ ] Service key appears nowhere in the repo or the built bundle (search the `dist` folder)
-- [ ] Email confirmation off, sign-up email pattern trigger active, Turnstile on
-- [ ] CSP header present in production with no console violations
-- [ ] Avatar bucket rejects a non-WebP file and a file over 200 KB
-- [ ] Purge job tested against a seeded 31-day-old account that leads a group
-- [ ] A removed member's open tab stops updating and is sent Home
+Reviewed 2026-11-17 (TASK.md 10.4) against the local stack with every migration applied. Items that can only be seen on the hosted project or the live site say so and are re-checked in the launch step (10.8).
+
+- [x] Every `public` table has row level security enabled. A catalog query finds no table in `public` without it, and the pgTAP structure test asserts it. `supabase db lint` reports no security issue (its one warning is `get_group_snapshot` being STABLE while it calls the lock-capable `private.caller_seat`, which it calls without a lock). Re-check the hosted security advisor at launch.
+- [x] No insert, update or delete policy exists for `authenticated` or `anon`. `pg_policies` in `public` holds only SELECT policies for `authenticated`; neither role has a table write grant, and `anon` has no grant at all.
+- [x] pgTAP suite passes: 17 files, 819 tests. This review found the matrix's "covers every function" guard out of date after 9.3 added `orphan_avatars` (CI had been red since); the function now has its matrix row, refused for every actor.
+- [x] Calling each write function with another group's ids fails: the matrix covers create, update (including reassigning across groups) and delete of tasks, and the group, task and thread suites cover leaders and members of another group.
+- [x] `logs` rejects UPDATE and DELETE from the service role (`logs_guard` and `logs_guard_truncate` triggers enabled; `logs_guard.test.sql`).
+- [x] Service key appears nowhere in the repo, its history or the built bundle. The only `sb_secret_` text in `dist` is supabase-js's own key-prefix check. The three Edge Functions read the key from their environment; `purge-inactive` and `sweep-avatars` refuse any call without a cron secret of at least 16 characters, compared in constant time, and `set-avatar` requires a valid user JWT.
+- [x] Email confirmation off, sign-up email pattern trigger active, Turnstile on. Locally `enable_confirmations = false` and the `taskahan_guard_email` trigger is enabled on `auth.users`; on the hosted project both were set in 0.5 and 0.6 and confirmed by the 1.5 spike.
+- [ ] CSP header present in production with no console violations. The build emits `dist/_headers` with the section 8 policy filled in for the project URL (10.1). Not yet verifiable: there is no production deploy until 10.8, which must confirm the header and a clean console.
+- [x] Avatar bucket rejects a non-WebP file and a file over 200 KB: the bucket is `image/webp` only with a 204800-byte limit, asserted in `avatars.test.sql`.
+- [x] Purge job tested against a seeded 31-day-old account that leads a group (`release_account.test.sql`: leader with members, leader alone, plain member).
+- [x] A removed member's open tab stops updating and is sent Home. The two-browser e2e test was failing in CI because the notice read "You no longer have access" when the refusal arrived before the membership change; the board now reads the caller's own membership row to say "You were removed", and the test passes.
 
 ## Reporting a problem
 
