@@ -4,6 +4,7 @@
 --      time do not deadlock.
 --   3. The last member leaving (which deletes the group) while another of
 --      their sessions saves a task does not deadlock.
+--   4. A reply or resolve that waited behind a task deletion is refused.
 --
 -- Same approach as join_concurrency.test.sql: real sessions over dblink,
 -- fixtures committed through a setup connection and deleted at the end.
@@ -13,7 +14,7 @@ create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 set search_path = public, extensions;
 
-select plan(14);
+select plan(19);
 
 create function pg_temp.connstr() returns text language sql as $$
   select format('host=%s port=%s dbname=%s user=postgres password=postgres',
@@ -172,6 +173,49 @@ select is(
      select count(*)::text from public.groups where id = '10000000-0000-0000-0000-0000000000e4' $$) as t(r text)),
   0, 'the group is deleted');
 
+-- ---------------------------------------------------------------------------
+-- 4. A reply and a resolve queued behind a task deletion
+-- ---------------------------------------------------------------------------
+
+-- E2 has an open question on #2 of group "Lock".
+select dblink_exec('setup', $$
+  insert into public.threads (id, group_id, task_id, opened_by, body) values
+    ('40000000-0000-0000-0000-0000000000e2', '10000000-0000-0000-0000-0000000000e1',
+     '30000000-0000-0000-0000-0000000000e2', '20000000-0000-0000-0000-0000000000e2', 'Which one?');
+$$);
+select pg_temp.connect_as('g', '00000000-0000-0000-0000-0000000000e2');
+
+-- The leader deletes #2 and keeps the transaction open.
+select dblink_exec('c', 'begin');
+select is(
+  (select r from dblink('c', $$ select 'deleted' from public.delete_task('30000000-0000-0000-0000-0000000000e2') $$) as t(r text)),
+  'deleted', 'the leader deletes the task');
+
+-- The assignee replies from one session and resolves from another. Both
+-- passed the live-task check before the deletion commits, and wait.
+select dblink_send_query('d', $$ select (public.reply_to_question('40000000-0000-0000-0000-0000000000e2',
+  'Late reply')).id::text $$);
+select dblink_send_query('g', $$ select (public.set_question_resolved('40000000-0000-0000-0000-0000000000e2',
+  true)).status::text $$);
+select pg_sleep(0.5);
+select is(dblink_is_busy('d') + dblink_is_busy('g'), 2, 'the reply and the resolve wait at the group lock');
+
+select dblink_exec('c', 'commit');
+select * from dblink_get_result('d', false) as t(r text);
+select ok(dblink_error_message('d') like '%forbidden%', 'the reply is refused once the task is deleted');
+select * from dblink_get_result('d', false) as t(r text);
+select * from dblink_get_result('g', false) as t(r text);
+select ok(dblink_error_message('g') like '%forbidden%', 'the resolve is refused once the task is deleted');
+select * from dblink_get_result('g', false) as t(r text);
+
+select is(
+  (select r from dblink('setup', $$
+     select (select count(*) from public.thread_replies where thread_id = '40000000-0000-0000-0000-0000000000e2')
+       || '/' || (select status from public.threads where id = '40000000-0000-0000-0000-0000000000e2')
+       || '/' || (select count(*) from public.logs where action in ('question_replied', 'question_resolved')
+                   and task_id = '30000000-0000-0000-0000-0000000000e2') $$) as t(r text)),
+  '0/open/0', 'nothing was written or logged after the deletion');
+
 -- Clean up the committed fixtures.
 select dblink_exec('setup', $$
   delete from public.groups where id in ('10000000-0000-0000-0000-0000000000e1',
@@ -186,6 +230,7 @@ select dblink_disconnect('c');
 select dblink_disconnect('d');
 select dblink_disconnect('e');
 select dblink_disconnect('f');
+select dblink_disconnect('g');
 select dblink_disconnect('setup');
 
 select * from finish();

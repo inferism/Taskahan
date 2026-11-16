@@ -143,6 +143,9 @@ declare
   v_number int;
   v_reply public.thread_replies;
 begin
+  -- Again under the group lock: the task may have been deleted while we waited.
+  perform private.live_thread_group(p_thread_id);
+
   select th.* into v_thread from public.threads th where th.id = p_thread_id;
   select t.number into v_number from public.tasks t where t.id = v_thread.task_id;
 
@@ -176,6 +179,9 @@ declare
   v_thread public.threads;
   v_number int;
 begin
+  -- Again under the group lock: the task may have been deleted while we waited.
+  perform private.live_thread_group(p_thread_id);
+
   if p_resolved is null then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'resolved';
   end if;
