@@ -2,12 +2,16 @@ import { QueryClient } from '@tanstack/react-query'
 import { boardKey, type Board } from '@/features/board/api'
 import { seedBoard } from '@/features/board/seed.fixture'
 import { applyGroupRow, applyMemberRow, applyTaskRow } from './changes'
+import { getOnline, onlineMembers } from './presence'
 
 const { channels, removeChannel } = vi.hoisted(() => ({
   channels: [] as {
     topic: string
     opts: unknown
     bindings: { type: string; filter: Record<string, string>; cb: (p: unknown) => void }[]
+    presence: Record<string, { member_id?: unknown }[]>
+    tracked: unknown[]
+    status: (s: string) => void
   }[],
   removeChannel: vi.fn(async () => 'ok'),
 }))
@@ -19,13 +23,21 @@ vi.mock('@/lib/supabase', () => ({
         topic,
         opts,
         bindings: [] as (typeof channels)[number]['bindings'],
+        presence: {} as (typeof channels)[number]['presence'],
+        tracked: [] as unknown[],
+        status: (() => {}) as (s: string) => void,
       }
       const ch = {
         on: (type: string, filter: Record<string, string>, cb: (p: unknown) => void) => {
           entry.bindings.push({ type, filter, cb })
           return ch
         },
-        subscribe: () => ch,
+        subscribe: (cb?: (s: string) => void) => {
+          if (cb) entry.status = cb
+          return ch
+        },
+        presenceState: () => entry.presence,
+        track: async (payload: unknown) => void entry.tracked.push(payload),
       }
       channels.push(entry)
       return ch
@@ -190,5 +202,38 @@ describe('group channel manager', () => {
     b()
     await flush()
     expect(removeChannel).toHaveBeenCalledTimes(1)
+  })
+
+  it('announces this member on every subscribe and mirrors who is online', async () => {
+    const qc = newClient()
+    const release = acquireGroupChannel(qc, 'capstone', 'ana')
+    await flush()
+    const ch = channels[0]
+    ch.status('SUBSCRIBED')
+    ch.status('CLOSED')
+    ch.status('SUBSCRIBED') // after a reconnect the tracking is gone and must be repeated
+    expect(ch.tracked).toEqual([{ member_id: 'ana' }, { member_id: 'ana' }])
+
+    ch.presence = { k1: [{ member_id: 'ana' }], k2: [{ member_id: 'ben' }] }
+    ch.bindings.find((b) => b.type === 'presence')!.cb({})
+    expect([...getOnline('capstone')].sort()).toEqual(['ana', 'ben'])
+    release()
+    await flush()
+    expect(getOnline('capstone').size).toBe(0)
+  })
+})
+
+describe('presence state', () => {
+  it('keeps a member online while any connection remains', () => {
+    const two = { a: [{ member_id: 'ana' }], b: [{ member_id: 'ana' }] }
+    expect([...onlineMembers(two)]).toEqual(['ana'])
+    const { b, ...one } = two
+    void b
+    expect([...onlineMembers(one)]).toEqual(['ana'])
+    expect(onlineMembers({}).size).toBe(0)
+  })
+
+  it('ignores payloads without a member id', () => {
+    expect(onlineMembers({ a: [{}, { member_id: 7 }] }).size).toBe(0)
   })
 })

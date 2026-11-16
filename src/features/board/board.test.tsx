@@ -1,8 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
+import { clearOnline, setOnline } from '@/realtime/presence'
 import { BoardPage } from './BoardPage'
 import { TaskRefs } from './TaskRefs'
 import { splitTaskRefs } from './taskLinks'
@@ -599,5 +600,25 @@ describe('review fixes', () => {
       delete HTMLElement.prototype.scrollTo
       width.mockRestore()
     }
+  })
+})
+
+describe('presence', () => {
+  afterEach(() => clearOnline('capstone'))
+
+  it('shows who is online on the header, the columns and the roster', async () => {
+    setWidth(1440)
+    renderBoard()
+    const ana = await screen.findByRole('region', { name: "ana's tasks" })
+    expect(within(ana).getByText(/^Offline · /)).toBeInTheDocument()
+    expect(screen.getByText('0 online')).toBeInTheDocument()
+    // A claimed id that is not on the board is ignored.
+    act(() => setOnline('capstone', new Set(['ana', 'ben', 'stranger'])))
+    expect(await screen.findByText('2 online')).toBeInTheDocument()
+    expect(within(ana).getByText(/^Online · /)).toBeInTheDocument()
+    expect(within(ana).getByRole('img', { name: /, online$/ })).toBeInTheDocument()
+    act(() => setOnline('capstone', new Set(['ben'])))
+    expect(await screen.findByText('1 online')).toBeInTheDocument()
+    expect(within(ana).getByText(/^Offline · /)).toBeInTheDocument()
   })
 })

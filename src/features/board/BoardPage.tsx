@@ -13,6 +13,7 @@ import { Roster } from '@/features/progress/Roster'
 import { errorKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
 import { useNow } from '@/lib/useNow'
+import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
@@ -66,7 +67,8 @@ function BoardShell({
   retrying: boolean
   onRetry: () => void
 }) {
-  useGroupChannel(board.group.id)
+  useGroupChannel(board.group.id, board.me)
+  const online = usePresence(board)
   const layout = useLayout()
   const members = useMemo(() => columnMembers(board), [board])
   const byMember = useMemo(() => tasksByMember(board), [board])
@@ -177,7 +179,13 @@ function BoardShell({
   }, [])
 
   const roster = (
-    <Roster members={members} tasksByMember={byMember} me={board.me} onSelect={showMember} />
+    <Roster
+      members={members}
+      tasksByMember={byMember}
+      me={board.me}
+      online={online}
+      onSelect={showMember}
+    />
   )
 
   const columns = members.map((m) => (
@@ -190,6 +198,7 @@ function BoardShell({
       member={m}
       tasks={byMember.get(m.id) ?? []}
       isMe={m.id === board.me}
+      online={online.has(m.id)}
       leader={leader}
       expanded={layout === 'phone' || expanded === m.id}
       fullWidth={layout === 'phone'}
@@ -214,6 +223,7 @@ function BoardShell({
         layout={layout}
         panel={panel}
         onPanel={setPanel}
+        onlineCount={online.size}
         onAddTask={leader ? () => setEditor('new') : undefined}
       />
       {refreshFailed && (

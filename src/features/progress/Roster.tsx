@@ -6,6 +6,8 @@ export interface RosterProps {
   members: Member[]
   tasksByMember: Map<string, Task[]>
   me: string
+  /** Membership ids that are online. */
+  online?: ReadonlySet<string>
   onSelect: (memberId: string) => void
 }
 
@@ -13,7 +15,9 @@ export interface RosterProps {
  * Task Progress: one row per member in column order, with the same numbers as the column header.
  * Done is green, In progress yellow, the rest left as track; Blocked is an indicator on top.
  */
-export function Roster({ members, tasksByMember, me, onSelect }: RosterProps) {
+const noneOnline: ReadonlySet<string> = new Set()
+
+export function Roster({ members, tasksByMember, me, online = noneOnline, onSelect }: RosterProps) {
   return (
     <section aria-label="Task Progress" className="flex min-h-0 flex-1 flex-col">
       <h2 className="px-4 pt-4 pb-2 font-display text-name font-bold uppercase tracking-[0.02em]">
@@ -35,6 +39,7 @@ export function Roster({ members, tasksByMember, me, onSelect }: RosterProps) {
                   seat={m.seat}
                   name={m.display_name}
                   former={former}
+                  online={online.has(m.id)}
                   photoUrl={avatarUrl(m.avatar_path)}
                 />
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -42,7 +47,9 @@ export function Roster({ members, tasksByMember, me, onSelect }: RosterProps) {
                     {former ? `#${m.display_name}` : m.display_name}
                     <span className="font-normal text-muted">
                       {' · '}
-                      {former ? 'Former member' : m.role === 'leader' ? 'Leader' : 'Member'}
+                      {former
+                        ? 'Former member'
+                        : `${online.has(m.id) ? 'Online' : 'Offline'} · ${m.role === 'leader' ? 'Leader' : 'Member'}`}
                       {m.id === me && ' · You'}
                     </span>
                   </span>

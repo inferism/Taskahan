@@ -3,6 +3,7 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 import { useEffect } from 'react'
 import { boardKey, type Board } from '@/features/board/api'
 import { supabase } from '@/lib/supabase'
+import { clearOnline, onlineMembers, setOnline } from './presence'
 import { applyGroupRow, applyMemberRow, applyTaskRow, needsSnapshot } from './changes'
 
 /**
@@ -57,7 +58,11 @@ export function refetchGroup(queryClient: QueryClient, groupId: string) {
 
 const tables: Table[] = ['tasks', 'memberships', 'threads', 'thread_replies', 'messages']
 
-function openChannel(queryClient: QueryClient, groupId: string): RealtimeChannel {
+function openChannel(
+  queryClient: QueryClient,
+  groupId: string,
+  memberId: string | undefined,
+): RealtimeChannel {
   const channel = supabase.channel(`group:${groupId}`, { config: { private: true } })
   const onChange = (table: Table) => (payload: RealtimePostgresChangesPayload<Row>) => {
     // Soft deletes only: a DELETE never carries a row worth applying.
@@ -83,7 +88,14 @@ function openChannel(queryClient: QueryClient, groupId: string): RealtimeChannel
     if (msg.status === 'ok') refetchGroup(queryClient, groupId)
     else console.warn('Realtime changes unavailable:', msg.message)
   })
-  channel.subscribe()
+  // Presence: announce this connection, and mirror who is here into the presence store.
+  channel.on('presence', { event: 'sync' }, () =>
+    setOnline(groupId, onlineMembers(channel.presenceState<{ member_id?: unknown }>())),
+  )
+  channel.subscribe((status) => {
+    // Tracking is lost with the connection, so announce again on every (re)subscribe.
+    if (status === 'SUBSCRIBED' && memberId) void channel.track({ member_id: memberId })
+  })
   return channel
 }
 
@@ -98,11 +110,15 @@ const entries = new Map<string, Entry>()
 const leaving = new Map<string, Promise<unknown>>()
 
 /** Join the group's channel, or share the one already open. Returns the release function. */
-export function acquireGroupChannel(queryClient: QueryClient, groupId: string): () => void {
+export function acquireGroupChannel(
+  queryClient: QueryClient,
+  groupId: string,
+  memberId?: string,
+): () => void {
   let entry = entries.get(groupId)
   if (!entry) {
     const prior = leaving.get(groupId) ?? Promise.resolve()
-    entry = { users: 0, channel: prior.then(() => openChannel(queryClient, groupId)) }
+    entry = { users: 0, channel: prior.then(() => openChannel(queryClient, groupId, memberId)) }
     entries.set(groupId, entry)
   }
   entry.users++
@@ -116,6 +132,7 @@ export function acquireGroupChannel(queryClient: QueryClient, groupId: string): 
     setTimeout(() => {
       if (mine.users > 0 || entries.get(groupId) !== mine) return
       entries.delete(groupId)
+      clearOnline(groupId)
       const done = mine.channel.then((channel) => supabase.removeChannel(channel))
       const settled = done
         .catch(() => undefined)
@@ -128,7 +145,10 @@ export function acquireGroupChannel(queryClient: QueryClient, groupId: string): 
 }
 
 /** Keep the group's channel open while the calling component is mounted. */
-export function useGroupChannel(groupId: string) {
+export function useGroupChannel(groupId: string, memberId?: string) {
   const queryClient = useQueryClient()
-  useEffect(() => acquireGroupChannel(queryClient, groupId), [queryClient, groupId])
+  useEffect(
+    () => acquireGroupChannel(queryClient, groupId, memberId),
+    [queryClient, groupId, memberId],
+  )
 }

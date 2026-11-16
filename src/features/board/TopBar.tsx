@@ -17,6 +17,8 @@ export interface TopBarProps {
   /** Tablet only: which slide-over panel is open. */
   panel: Panel | null
   onPanel: (panel: Panel | null) => void
+  /** Active members online right now. */
+  onlineCount: number
   /** Leader only. On phones the button sits above the tab bar instead. */
   onAddTask?: () => void
 }
@@ -122,8 +124,8 @@ function AccountMenu({ me }: { me: Member | undefined }) {
   )
 }
 
-/** The 56px court-green bar. Online count arrives with presence (5.4). */
-export function TopBar({ board, me, layout, panel, onPanel, onAddTask }: TopBarProps) {
+/** The 56px court-green bar. */
+export function TopBar({ board, me, layout, panel, onPanel, onlineCount, onAddTask }: TopBarProps) {
   const toggle = (p: Panel) => onPanel(panel === p ? null : p)
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 bg-bar px-4 text-white md:gap-3 md:px-6">
@@ -160,6 +162,10 @@ export function TopBar({ board, me, layout, panel, onPanel, onAddTask }: TopBarP
             </button>
           </>
         )}
+        <span className="flex items-center gap-1.5 px-2 text-body whitespace-nowrap">
+          <span aria-hidden className="size-2.5 rounded-full bg-done" />
+          {onlineCount} online
+        </span>
         {onAddTask && layout !== 'phone' && (
           <button
             type="button"

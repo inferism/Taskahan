@@ -21,6 +21,8 @@ export interface MemberColumnProps {
   onToggleTask?: (task: Task) => void
   canSetStatus?: (task: Task) => boolean
   onStatus?: (task: Task, status: Task['status']) => void
+  /** At least one of this member's connections is present. */
+  online?: boolean
   /** A status save is in flight somewhere on the board. */
   statusSaving?: boolean
   /** The task whose last status change failed. */
@@ -30,10 +32,10 @@ export interface MemberColumnProps {
   onEdit?: (task: Task) => void
 }
 
-function statusLine(member: Member, isMe: boolean): string {
+function statusLine(member: Member, isMe: boolean, online: boolean): string {
   if (member.status === 'former') return 'Former member'
   const role = member.role === 'leader' ? 'Leader' : 'Member'
-  return isMe ? `${role} · You` : role
+  return `${online ? 'Online' : 'Offline'} · ${isMe ? `${role} · You` : role}`
 }
 
 /** Empty columns say what to do next, in one sentence. */
@@ -64,6 +66,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     onToggleTask,
     canSetStatus,
     onStatus,
+    online = false,
     statusSaving,
     failedTaskId,
     onRetryStatus,
@@ -118,13 +121,14 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
             name={member.display_name}
             size={52}
             former={former}
+            online={online}
             photoUrl={avatarUrl(member.avatar_path)}
           />
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="truncate font-display text-name font-bold uppercase tracking-[0.02em]">
               {name}
             </span>
-            <span className="text-label text-muted">{statusLine(member, isMe)}</span>
+            <span className="text-label text-muted">{statusLine(member, isMe, online)}</span>
           </span>
           <span className="font-display text-tally font-bold" aria-label={progressText(p)}>
             {p.done}
