@@ -6,7 +6,7 @@ set search_path = public, extensions;
 delete from public.groups;
 delete from auth.users;
 
-select plan(14);
+select plan(18);
 
 -- Sign up with a matching email creates the profile.
 insert into auth.users (id, email) values
@@ -71,6 +71,21 @@ select ok(
 select throws_ok(
   $$ update public.profiles set theme = 'dark' $$,
   '42501', null, 'direct updates are refused');
+
+-- 8.3 set_theme saves the caller's own theme, and only a known value.
+select public.set_theme('dark');
+select is((select theme from public.profiles), 'dark', 'set_theme saves the theme');
+select throws_ok(
+  $$ select public.set_theme('neon') $$,
+  '22023', 'invalid_input', 'set_theme refuses an unknown theme');
+reset role;
+select is(
+  (select theme from public.profiles where id = '00000000-0000-0000-0000-00000000000b'),
+  'system', 'set_theme leaves other profiles alone');
+set local role anon;
+select throws_ok(
+  $$ select public.set_theme('light') $$,
+  '42501', null, 'anon cannot call set_theme');
 
 select * from finish();
 rollback;

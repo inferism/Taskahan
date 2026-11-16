@@ -1,6 +1,6 @@
+import { Settings } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/ui'
 import { purposeText, useGroups, type HomeGroup } from './api'
 import { CreateGroupDialog } from './CreateGroupDialog'
@@ -71,10 +71,13 @@ export function HomePage() {
         <h1 className="font-display text-name font-bold uppercase tracking-[0.02em]">
           Your groups
         </h1>
-        {/* Temporary until Settings (log out) is built. */}
-        <Button variant="quiet" onClick={() => void supabase.auth.signOut()}>
-          Log out
-        </Button>
+        <Link
+          to="/settings"
+          className="inline-flex h-11 items-center gap-1.5 rounded-md px-3 text-body font-semibold hover:bg-sunken sm:h-10"
+        >
+          <Settings size={20} strokeWidth={1.75} aria-hidden />
+          Settings
+        </Link>
       </div>
 
       {sent && !dismissed && (

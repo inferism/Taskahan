@@ -92,6 +92,8 @@ export function CreateGroupDialog({
       return
     }
     await queryClient.invalidateQueries({ queryKey: groupsKey })
+    // The dialog may have closed (or the page changed) during the refresh.
+    if (!isCurrent()) return
     reset(false)
     void navigate(`/g/${data}`)
   }

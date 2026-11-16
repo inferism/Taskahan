@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { ToastProvider } from '@/ui'
+import { ThemeSync } from '@/features/profile/ThemeSync'
 import { ActivityHeartbeat } from './ActivityHeartbeat'
 import { AuthProvider } from './auth'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -18,6 +19,7 @@ export function App() {
         <ToastProvider>
           <AuthProvider>
             <ActivityHeartbeat />
+            <ThemeSync />
             <RouterProvider router={router} />
           </AuthProvider>
         </ToastProvider>

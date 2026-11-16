@@ -6,7 +6,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { HomePage } from '@/features/home/HomePage'
 import { BoardPage } from '@/features/board/BoardPage'
-import { SettingsPage } from './pages'
+import { SettingsPage } from '@/features/profile/SettingsPage'
 
 const appRoutes: RouteObject[] = [
   {

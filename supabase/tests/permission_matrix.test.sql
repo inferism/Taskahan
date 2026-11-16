@@ -17,7 +17,7 @@ set search_path = public, extensions;
 delete from public.groups;
 delete from auth.users;
 
-select plan(435);
+select plan(441);
 
 -- ---------------------------------------------------------------------------
 -- Harness
@@ -276,6 +276,9 @@ insert into matrix (what, sql, spec) values
    'true|true|true|42501|42501|42501'),
   ('touch_activity',
    $$ select public.touch_activity() $$,
+   'ok|ok|ok|ok|ok|42501'),
+  ('set_theme',
+   $$ select public.set_theme('dark') $$,
    'ok|ok|ok|ok|ok|42501');
 
 update matrix set scalar = true
@@ -353,7 +356,7 @@ select is(
      from pg_proc p where p.pronamespace = 'public'::regnamespace),
   array['create_group', 'create_task', 'delete_task', 'get_group_snapshot', 'join_group',
         'leave_group', 'open_question', 'remove_member', 'reply_to_question', 'send_message',
-        'set_question_resolved', 'set_task_status', 'swap_avatar_path', 'take_over_tasks',
+        'set_question_resolved', 'set_task_status', 'set_theme', 'swap_avatar_path', 'take_over_tasks',
         'touch_activity', 'transfer_leadership', 'update_group', 'update_task'],
   'the matrix covers every function in public');
 

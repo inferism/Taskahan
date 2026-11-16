@@ -1,14 +1,16 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { createMemoryRouter, MemoryRouter, Route, RouterProvider, Routes } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { HomePage } from './HomePage'
 
-const { rpc, from, groups } = vi.hoisted(() => ({
+const { rpc, from, groups, gate } = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
   groups: [] as unknown[],
+  // While set, reads of the group list wait for it, so a refresh can be held mid-way.
+  gate: { held: null as Promise<void> | null },
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -22,8 +24,11 @@ vi.mock('@/lib/supabase', () => ({
         is: () => chain,
         order: () => chain,
         range: () => chain,
-        then: (resolve: (v: unknown) => void) =>
-          resolve({ data: table === 'groups' ? groups : [], error: null }),
+        then: (resolve: (v: unknown) => void) => {
+          const reply = () => resolve({ data: table === 'groups' ? groups : [], error: null })
+          if (table === 'groups' && gate.held) void gate.held.then(reply)
+          else reply()
+        },
       }
       return chain
     },
@@ -62,6 +67,7 @@ function holdNextRpc(reply: unknown) {
 const groupReads = () => from.mock.calls.filter(([t]) => t === 'groups').length
 
 beforeEach(() => {
+  gate.held = null
   rpc.mockReset()
   from.mockClear()
   groups.length = 0
@@ -126,5 +132,54 @@ describe('a cancelled group request', () => {
     await answer()
 
     expect(screen.getByText('On the board')).toBeInTheDocument()
+  })
+
+  it('Create: closed during the list refresh, it still stays on Home with the Join draft', async () => {
+    renderHome()
+    await userEvent.click(await screen.findByRole('button', { name: 'Create' }))
+    let release: () => void = () => {}
+    gate.held = new Promise((r) => (release = r))
+    rpc.mockResolvedValueOnce({ data: 'g-new', error: null })
+    await userEvent.type(screen.getByLabelText('Group name'), 'Capstone')
+    await userEvent.type(screen.getByLabelText('Join code'), 'abcdefgh')
+    await userEvent.click(screen.getByRole('button', { name: 'Create group' }))
+    // The reply is in; the refresh that follows it is held.
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Join' }))
+    await userEvent.type(screen.getByLabelText('Join code'), 'QWER')
+
+    await act(async () => {
+      release()
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    expect(screen.queryByText('On the board')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Join code')).toHaveValue('QWER')
+  })
+
+  it('Create: a reply after browser Back does not navigate', async () => {
+    const answer = holdNextRpc({ data: 'g-new', error: null })
+    const router = createMemoryRouter(
+      [
+        { path: '/', element: <HomePage /> },
+        { path: '/elsewhere', element: <p>Somewhere else</p> },
+        { path: '/g/:id', element: <p>On the board</p> },
+      ],
+      { initialEntries: ['/elsewhere', '/'], initialIndex: 1 },
+    )
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Create' }))
+    await userEvent.type(screen.getByLabelText('Group name'), 'Capstone')
+    await userEvent.type(screen.getByLabelText('Join code'), 'abcdefgh')
+    await userEvent.click(screen.getByRole('button', { name: 'Create group' }))
+    await act(() => router.navigate(-1))
+    expect(screen.getByText('Somewhere else')).toBeInTheDocument()
+
+    await answer()
+    expect(router.state.location.pathname).toBe('/elsewhere')
   })
 })

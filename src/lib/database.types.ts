@@ -688,6 +688,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_theme: { Args: { p_theme: string }; Returns: undefined }
       take_over_tasks: {
         Args: { p_from_member_id: string; p_task_ids: string[] }
         Returns: number[]
