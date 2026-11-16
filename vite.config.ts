@@ -13,5 +13,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Playwright specs run with npm run test:e2e.
+    exclude: ['e2e/**', 'node_modules/**'],
   },
 })

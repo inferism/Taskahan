@@ -30,3 +30,32 @@ jobs:
       # Starts only Postgres, applies every migration and the seed.
       - run: supabase db start
       - run: supabase test db
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.1.0
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The full local stack: Auth and Realtime are needed, and the seed gives ana and ben.
+      - run: supabase start -x studio,imgproxy,vector,logflare,edge-runtime
+      - name: Run the two-browser tests
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export E2E_SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_KEY="${PUBLISHABLE_KEY:-$ANON_KEY}"
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
