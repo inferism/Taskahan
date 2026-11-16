@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/ui'
 import { purposeText, useGroups, type HomeGroup } from './api'
@@ -61,6 +61,9 @@ export function HomePage() {
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [leaving, setLeaving] = useState<HomeGroup | null>(null)
+  // Set by a board that sent the member Home (removed while it was open).
+  const sent = (useLocation().state as { notice?: string } | null)?.notice
+  const [dismissed, setDismissed] = useState(false)
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -73,6 +76,18 @@ export function HomePage() {
           Log out
         </Button>
       </div>
+
+      {sent && !dismissed && (
+        <p
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-md border border-line bg-sunken p-3 text-body"
+        >
+          {sent}
+          <Button variant="quiet" onClick={() => setDismissed(true)}>
+            Dismiss
+          </Button>
+        </p>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Button variant="primary" onClick={() => setCreating(true)}>

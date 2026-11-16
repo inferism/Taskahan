@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { clearOnline, setOnline } from '@/realtime/presence'
 import { BoardPage } from './BoardPage'
@@ -51,11 +51,18 @@ function setWidth(width: number) {
   }) as unknown as typeof window.matchMedia
 }
 
+/** Stands in for Home: shows the notice a board leaves behind. */
+function HomeStub() {
+  const notice = (useLocation().state as { notice?: string } | null)?.notice
+  return <h1>Home {notice}</h1>
+}
+
 function renderBoard(path = '/g/capstone', client = createQueryClient()) {
   render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
+          <Route path="/" element={<HomeStub />} />
           <Route path="/g/:groupId" element={<BoardPage />} />
           <Route path="/g/:groupId/t/:number" element={<BoardPage />} />
         </Routes>
@@ -532,9 +539,19 @@ describe('review fixes', () => {
     await screen.findByRole('region', { name: "ana's tasks" })
     rpc.mockResolvedValue({ data: null, error: { message: 'forbidden' } })
     void client.invalidateQueries({ queryKey: ['board', 'capstone'] })
-    expect(await screen.findByRole('heading', { name: 'Board not available' })).toBeInTheDocument()
+    // Access ended while the board was open: out of the board, with the cache dropped.
+    expect(
+      await screen.findByRole('heading', { name: /^Home You no longer have access/ }),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: "ana's tasks" })).not.toBeInTheDocument()
-    expect(screen.queryByText('CAPSTONE')).not.toBeInTheDocument()
+    expect(client.getQueryData(['board', 'capstone'])).toBeUndefined()
+  })
+
+  it('still explains a board that was never allowed', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'forbidden' } })
+    setWidth(1440)
+    renderBoard()
+    expect(await screen.findByRole('heading', { name: 'Board not available' })).toBeInTheDocument()
   })
 
   it('takes one status change at a time, so answers cannot land out of order', async () => {
@@ -620,5 +637,27 @@ describe('presence', () => {
     act(() => setOnline('capstone', new Set(['ben'])))
     expect(await screen.findByText('1 online')).toBeInTheDocument()
     expect(within(ana).getByText(/^Offline · /)).toBeInTheDocument()
+  })
+})
+
+describe('removed while open', () => {
+  it('goes Home with a notice when the own membership flips to former', async () => {
+    const client = createQueryClient()
+    setWidth(1440)
+    renderBoard('/g/capstone', client)
+    await screen.findByRole('region', { name: "ana's tasks" })
+    const mine = seedBoard.memberships.find((m) => m.id === seedBoard.me)!
+    act(() =>
+      client.setQueryData(['board', 'capstone'], {
+        ...seedBoard,
+        memberships: seedBoard.memberships.map((m) =>
+          m.id === mine.id ? { ...m, status: 'former', left_reason: 'removed' } : m,
+        ),
+      }),
+    )
+    expect(
+      await screen.findByRole('heading', { name: 'Home You were removed from Capstone Crew.' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: "ana's tasks" })).not.toBeInTheDocument()
   })
 })

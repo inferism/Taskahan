@@ -8,15 +8,16 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Link, useParams } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from 'react-router'
 import { Roster } from '@/features/progress/Roster'
-import { errorKey } from '@/features/home/api'
+import { errorKey, groupsKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
 import { useNow } from '@/lib/useNow'
 import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { Avatar, Button, cn } from '@/ui'
-import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
+import { avatarUrl, boardKey, useBoard, useSetTaskStatus, type Board, type Task } from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
 import { TaskDialog } from './TaskDialog'
@@ -33,6 +34,12 @@ export function BoardPage() {
   // A failed refresh keeps the last board on screen; only a board never loaded is replaced.
   // Forbidden is different: the caller has lost access, so the cached board must go too.
   const forbidden = board.isError && errorKey(board.error) === 'forbidden'
+  // Access ended while the board was open (the membership flipped, or the server now refuses).
+  if (forbidden && board.data)
+    return <LeaveBoard groupId={groupId} notice={lostAccess(board.data)} />
+  const seat = board.data && myMember(board.data)
+  if (board.data && seat?.status === 'former')
+    return <LeaveBoard groupId={groupId} notice={lostAccess(board.data)} />
   if (board.isError && (!board.data || forbidden)) {
     return (
       <BoardProblem
@@ -52,6 +59,30 @@ export function BoardPage() {
       onRetry={() => void board.refetch()}
     />
   )
+}
+
+/** What to tell a member whose access ended, by how it ended. */
+function lostAccess(board: Board): string {
+  const seat = myMember(board)
+  const name = board.group.name
+  if (seat?.left_reason === 'removed') return `You were removed from ${name}.`
+  if (seat?.left_reason === 'left') return `You left ${name}.`
+  return `You no longer have access to ${name}.`
+}
+
+/**
+ * Leaves a board that is no longer the caller's: drops its caches (the unmount closes the
+ * channel) and goes Home with a notice.
+ */
+function LeaveBoard({ groupId, notice }: { groupId: string; notice: string }) {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: boardKey(groupId) })
+    void queryClient.invalidateQueries({ queryKey: groupsKey })
+    navigate('/', { replace: true, state: { notice } })
+  }, [queryClient, navigate, groupId, notice])
+  return <BoardLoading />
 }
 
 function BoardShell({
