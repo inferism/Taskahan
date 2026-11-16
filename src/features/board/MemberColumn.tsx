@@ -21,6 +21,8 @@ export interface MemberColumnProps {
   onToggleTask?: (task: Task) => void
   canSetStatus?: (task: Task) => boolean
   onStatus?: (task: Task, status: Task['status']) => void
+  /** A status save is in flight somewhere on the board. */
+  statusSaving?: boolean
   /** The task whose last status change failed. */
   failedTaskId?: string
   onRetryStatus?: () => void
@@ -62,6 +64,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     onToggleTask,
     canSetStatus,
     onStatus,
+    statusSaving,
     failedTaskId,
     onRetryStatus,
     onEdit,
@@ -73,7 +76,17 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
   const p = progressOf(tasks)
   const pct = (n: number) => (p.total === 0 ? 0 : (n / p.total) * 100)
   const sections = deadlineSections(tasks, now)
-  const [doneOpen, setDoneOpen] = useState(false)
+  // Done starts folded, but the open task never hides inside it: opening a finished task (a
+  // link to #1, say) or finishing the open one unfolds Done.
+  const openDone = tasks.some((t) => t.id === openTaskId && t.status === 'done')
+    ? openTaskId
+    : undefined
+  const [doneOpen, setDoneOpen] = useState(Boolean(openDone))
+  const [seenOpenDone, setSeenOpenDone] = useState(openDone)
+  if (openDone !== seenOpenDone) {
+    setSeenOpenDone(openDone)
+    if (openDone) setDoneOpen(true)
+  }
   const collapsed = !fullWidth && !expanded
 
   return (
@@ -167,6 +180,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
                       onToggle={() => onToggleTask?.(t)}
                       canSetStatus={canSetStatus?.(t) ?? false}
                       onStatus={(status) => onStatus?.(t, status)}
+                      statusSaving={statusSaving}
                       statusError={failedTaskId === t.id}
                       onRetry={onRetryStatus}
                       onEdit={onEdit && (() => onEdit(t))}

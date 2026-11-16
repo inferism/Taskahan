@@ -17,6 +17,9 @@ vi.mock('@/lib/supabase', () => ({
       const chain = {
         select: () => chain,
         eq: () => chain,
+        is: () => chain,
+        order: () => chain,
+        range: () => chain,
         then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
       }
       return chain
@@ -515,5 +518,82 @@ describe('loading, empty and error states', () => {
     rpc.mockResolvedValue({ data: seedBoard, error: null })
     await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+})
+
+describe('review fixes', () => {
+  it('drops the cached board when the server says forbidden', async () => {
+    const client = createQueryClient()
+    setWidth(1440)
+    renderBoard('/g/capstone', client)
+    await screen.findByRole('region', { name: "ana's tasks" })
+    rpc.mockResolvedValue({ data: null, error: { message: 'forbidden' } })
+    void client.invalidateQueries({ queryKey: ['board', 'capstone'] })
+    expect(await screen.findByRole('heading', { name: 'Board not available' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: "ana's tasks" })).not.toBeInTheDocument()
+    expect(screen.queryByText('CAPSTONE')).not.toBeInTheDocument()
+  })
+
+  it('takes one status change at a time, so answers cannot land out of order', async () => {
+    let answer: (v: unknown) => void = () => {}
+    rpc.mockImplementation((name: string, args: Record<string, unknown>) => {
+      if (name === 'get_group_snapshot') return Promise.resolve({ data: seedBoard, error: null })
+      const t = seedBoard.tasks.find((x) => x.id === args.p_task_id)!
+      return new Promise(
+        (resolve) =>
+          (answer = () => resolve({ data: { ...t, status: args.p_status }, error: null })),
+      )
+    })
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByRole('button', { name: /Survey ten students/ }))
+    await userEvent.click(within(cara).getByRole('radio', { name: 'Done' }))
+    for (const radio of within(cara).getAllByRole('radio')) expect(radio).toBeDisabled()
+    await userEvent.click(within(cara).getByRole('radio', { name: 'To do' }))
+    expect(rpc.mock.calls.filter(([n]) => n === 'set_task_status')).toHaveLength(1)
+    answer(undefined)
+    expect(await within(cara).findByRole('button', { name: /Done · 1/ })).toBeInTheDocument()
+    for (const radio of within(cara).getAllByRole('radio')) expect(radio).toBeEnabled()
+  })
+
+  it('unfolds Done when a link opens a finished task', async () => {
+    setWidth(1440)
+    renderBoard('/g/capstone/t/1')
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    expect(within(ben).getByRole('button', { name: 'Done · 1' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(within(ben).getByRole('group', { name: 'Task #1 details' })).toBeVisible()
+  })
+
+  it('puts the phone pager back on the same member after another tab', async () => {
+    const scrolls: number[] = []
+    // jsdom has no scrolling; record where the phone pager is asked to go.
+    HTMLElement.prototype.scrollTo = function (this: HTMLElement, opts?: ScrollToOptions | number) {
+      if (typeof opts === 'object' && this.className.includes('snap-x')) scrolls.push(opts.left!)
+    } as HTMLElement['scrollTo']
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(390)
+    try {
+      setWidth(390)
+      renderBoard()
+      const pager = await screen.findByRole('navigation', { name: 'Members' })
+      await userEvent.click(within(pager).getByRole('button', { name: 'cara' }))
+      const tabs = screen.getByRole('navigation', { name: 'Board sections' })
+      await userEvent.click(within(tabs).getByRole('button', { name: 'Progress' }))
+      scrolls.length = 0
+      await userEvent.click(within(tabs).getByRole('button', { name: 'Board' }))
+      expect(scrolls).toEqual([2 * 390])
+      expect(
+        within(screen.getByRole('navigation', { name: 'Members' })).getByRole('button', {
+          name: 'cara',
+        }),
+      ).toHaveAttribute('aria-current', 'true')
+    } finally {
+      // @ts-expect-error remove the stub again; jsdom does not provide scrollTo
+      delete HTMLElement.prototype.scrollTo
+      width.mockRestore()
+    }
   })
 })

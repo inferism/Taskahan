@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { groupsKey } from '@/features/home/api'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
@@ -97,13 +98,17 @@ export function avatarUrl(path: string | null): string | null {
   return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl
 }
 
-/** Cache patch for a task row the server just returned. */
+/**
+ * Cache patch for a task row the server just returned. Home's progress counts the same tasks,
+ * so it is marked stale too.
+ */
 export function patchTask(
   queryClient: ReturnType<typeof useQueryClient>,
   groupId: string,
   task: Task & { deleted_at?: string | null },
 ) {
   queryClient.setQueryData<Board>(boardKey(groupId), (board) => board && upsertTask(board, task))
+  void queryClient.invalidateQueries({ queryKey: groupsKey })
 }
 
 export function useSetTaskStatus(groupId: string) {

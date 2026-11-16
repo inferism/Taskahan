@@ -1,9 +1,18 @@
 import { ChartNoAxesColumn, Columns3, MessageSquare, ScrollText, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Link, useParams } from 'react-router'
 import { Roster } from '@/features/progress/Roster'
 import { errorKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
+import { useNow } from '@/lib/useNow'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
@@ -21,10 +30,12 @@ export function BoardPage() {
 
   if (board.isPending) return <BoardLoading />
   // A failed refresh keeps the last board on screen; only a board never loaded is replaced.
-  if (board.isError && !board.data) {
+  // Forbidden is different: the caller has lost access, so the cached board must go too.
+  const forbidden = board.isError && errorKey(board.error) === 'forbidden'
+  if (board.isError && (!board.data || forbidden)) {
     return (
       <BoardProblem
-        forbidden={errorKey(board.error) === 'forbidden'}
+        forbidden={forbidden}
         retrying={board.isFetching}
         onRetry={() => void board.refetch()}
       />
@@ -61,7 +72,7 @@ function BoardShell({
   const byMember = useMemo(() => tasksByMember(board), [board])
   const me = myMember(board)
   const leader = amLeader(board)
-  const [now] = useState(() => new Date())
+  const now = useNow()
 
   const [expanded, setExpanded] = useState(board.me)
   // One open task per column, by member id.
@@ -100,6 +111,15 @@ function BoardShell({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [panel])
+
+  // The pager is rebuilt each time the Board tab returns; put it back on the member it showed.
+  useLayoutEffect(() => {
+    const pager = pagerRef.current
+    if (layout !== 'phone' || tab !== 'board' || !pager) return
+    pager.scrollTo?.({ left: page * pager.clientWidth, behavior: 'auto' })
+    // Only a remount restores; page changes from swiping must not scroll again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, tab])
 
   const goToPage = useCallback((index: number, smooth = true) => {
     const pager = pagerRef.current
@@ -178,7 +198,8 @@ function BoardShell({
       openTaskId={openTasks[m.id]}
       onToggleTask={toggleTask}
       canSetStatus={(t) => canSetStatus(board, t)}
-      onStatus={(t, status) => setStatus.mutate({ taskId: t.id, status })}
+      onStatus={(t, status) => !setStatus.isPending && setStatus.mutate({ taskId: t.id, status })}
+      statusSaving={setStatus.isPending}
       onEdit={leader ? setEditor : undefined}
       failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
       onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}

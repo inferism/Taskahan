@@ -11,6 +11,8 @@ export interface TaskRowProps {
   /** Assignee or leader. Everyone else reads the status as text. */
   canSetStatus: boolean
   onStatus: (status: Task['status']) => void
+  /** A status save is in flight; the control waits so answers cannot arrive out of order. */
+  statusSaving?: boolean
   statusError?: boolean
   onRetry?: () => void
   /** Leader only: opens the edit dialog. */
@@ -39,6 +41,7 @@ export function TaskRow({
   onToggle,
   canSetStatus,
   onStatus,
+  statusSaving,
   statusError,
   onRetry,
   onEdit,
@@ -77,6 +80,7 @@ export function TaskRow({
                 options={[...statusOptions]}
                 value={task.status}
                 onValueChange={onStatus}
+                disabled={statusSaving}
               />
             ) : (
               <p className="flex items-center gap-2 text-body">

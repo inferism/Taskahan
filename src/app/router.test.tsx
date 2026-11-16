@@ -14,6 +14,9 @@ vi.mock('@/lib/supabase', () => ({
       const chain = {
         select: () => chain,
         eq: () => chain,
+        is: () => chain,
+        order: () => chain,
+        range: () => chain,
         then: (resolve: (v: unknown) => void) => resolve({ data: [], error: null }),
       }
       return chain

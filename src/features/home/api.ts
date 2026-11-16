@@ -29,12 +29,34 @@ export function purposeText(purpose: GroupPurpose, note: string | null): string 
 
 export const groupsKey = ['groups'] as const
 
+/** Rows per request. The API caps a response at 1000 rows, so a full read must page. */
+export const TASK_PAGE = 1000
+
+/**
+ * Every live task in the caller's groups (up to 20 groups of 500), read page by page in a
+ * stable order so no row is skipped or counted twice.
+ */
+async function fetchLiveTasks() {
+  const rows: { group_id: string; status: string }[] = []
+  for (let from = 0; ; from += TASK_PAGE) {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('group_id, status')
+      .is('deleted_at', null)
+      .order('id')
+      .range(from, from + TASK_PAGE - 1)
+    if (error) return { data: null, error }
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < TASK_PAGE) return { data: rows, error: null }
+  }
+}
+
 /** The groups the signed-in user is an active member of. RLS limits every query to them. */
 async function fetchGroups(userId: string): Promise<HomeGroup[]> {
   const [groups, seats, tasks] = await Promise.all([
     supabase.from('groups').select('id, name, purpose, purpose_note, created_at'),
     supabase.from('memberships').select('group_id, user_id, role').eq('status', 'active'),
-    supabase.from('tasks').select('group_id, status'),
+    fetchLiveTasks(),
   ])
   const failure = groups.error ?? seats.error ?? tasks.error
   if (failure) throw failure

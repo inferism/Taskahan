@@ -4,17 +4,29 @@ import { MemoryRouter } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { HomePage } from './HomePage'
 
-const { tables } = vi.hoisted(() => ({
+const { tables, calls } = vi.hoisted(() => ({
   tables: {} as Record<string, { data: unknown[]; error: unknown }>,
+  calls: [] as string[],
 }))
 
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
+      let range: [number, number] | undefined
       const chain = {
         select: () => chain,
         eq: () => chain,
-        then: (resolve: (v: unknown) => void) => resolve(tables[table]),
+        is: (col: string, v: unknown) => (calls.push(`${table}.is(${col},${v})`), chain),
+        order: () => chain,
+        range: (a: number, b: number) => (
+          calls.push(`${table}.range(${a},${b})`),
+          (range = [a, b]),
+          chain
+        ),
+        then: (resolve: (v: unknown) => void) => {
+          const { data, error } = tables[table]
+          resolve({ data: range ? data.slice(range[0], range[1] + 1) : data, error })
+        },
       }
       return chain
     },
@@ -33,6 +45,7 @@ function renderHome() {
 }
 
 beforeEach(() => {
+  calls.length = 0
   tables.groups = { data: [], error: null }
   tables.memberships = { data: [], error: null }
   tables.tasks = { data: [], error: null }
@@ -91,5 +104,38 @@ describe('home', () => {
     expect(
       await screen.findByRole('button', { name: 'Retry' }, { timeout: 4000 }),
     ).toBeInTheDocument()
+  })
+
+  it('counts only live tasks, reading every page past the 1000-row cap', async () => {
+    tables.groups.data = [
+      { id: 'g1', name: 'Big', purpose: 'work_team', purpose_note: null, created_at: '2026-01-01' },
+      {
+        id: 'g2',
+        name: 'Late',
+        purpose: 'work_team',
+        purpose_note: null,
+        created_at: '2026-01-02',
+      },
+    ]
+    tables.memberships.data = [
+      { group_id: 'g1', user_id: 'me', role: 'member' },
+      { group_id: 'g2', user_id: 'me', role: 'member' },
+    ]
+    // 1500 rows for g1 come first; g2's three tasks only appear on the second page.
+    tables.tasks.data = [
+      ...Array.from({ length: 1500 }, () => ({ group_id: 'g1', status: 'todo' })),
+      { group_id: 'g2', status: 'done' },
+      { group_id: 'g2', status: 'done' },
+      { group_id: 'g2', status: 'todo' },
+    ]
+    renderHome()
+    expect(await screen.findByText('0 of 1500 completed')).toBeInTheDocument()
+    expect(screen.getByText('2 of 3 completed')).toBeInTheDocument()
+    expect(calls).toEqual([
+      'tasks.is(deleted_at,null)',
+      'tasks.range(0,999)',
+      'tasks.is(deleted_at,null)',
+      'tasks.range(1000,1999)',
+    ])
   })
 })
