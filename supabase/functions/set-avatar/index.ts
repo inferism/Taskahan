@@ -4,6 +4,7 @@
 // POST { "path": "{user_id}/{uuid}.webp" } with the caller's JWT.
 // Checks the object is in the caller's folder and is a real WebP, swaps
 // profiles.avatar_path, then deletes the previous object.
+// POST { "path": null } removes the photo: clears the path, deletes the object.
 // Errors return { "error": key } with a stable key, like the SQL functions.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -55,6 +56,15 @@ Deno.serve(async (req) => {
     path = (await req.json())?.path
   } catch {
     return reply(400, { error: 'invalid_input' })
+  }
+  if (path === null) {
+    const { data: oldPath, error } = await admin.rpc('swap_avatar_path', {
+      p_user_id: userId,
+      p_path: null,
+    })
+    if (error) return reply(500, { error: 'server_error' })
+    if (oldPath) await admin.storage.from(BUCKET).remove([oldPath])
+    return reply(200, { avatar_path: null })
   }
   if (typeof path !== 'string' || !new RegExp(`^${userId}/${UUID}\\.webp$`).test(path)) {
     return reply(403, { error: 'forbidden' })
