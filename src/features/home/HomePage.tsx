@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/ui'
 import { purposeText, useGroups, type HomeGroup } from './api'
 import { CreateGroupDialog } from './CreateGroupDialog'
+import { JoinGroupDialog } from './JoinGroupDialog'
 
 function Progress({ done, total }: { done: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100)
@@ -49,6 +50,7 @@ function GroupRow({ group }: { group: HomeGroup }) {
 export function HomePage() {
   const groups = useGroups()
   const [creating, setCreating] = useState(false)
+  const [joining, setJoining] = useState(false)
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -66,9 +68,10 @@ export function HomePage() {
         <Button variant="primary" onClick={() => setCreating(true)}>
           Create
         </Button>
-        <Button>Join</Button>
+        <Button onClick={() => setJoining(true)}>Join</Button>
       </div>
       <CreateGroupDialog open={creating} onOpenChange={setCreating} />
+      <JoinGroupDialog open={joining} onOpenChange={setJoining} />
 
       {groups.isPending ? (
         <ul aria-busy="true" aria-label="Loading groups" className="flex flex-col gap-3">
