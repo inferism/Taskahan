@@ -132,6 +132,26 @@ describe('deadline groups', () => {
 })
 
 describe('cache patches', () => {
+  it('ignores a row older than the cached one, such as a slow save reply', () => {
+    const newer = upsertTask(seedBoard, {
+      ...byNumber(2),
+      status: 'done',
+      updated_at: '2026-11-16T12:00:00Z',
+    })
+    const late = upsertTask(newer, {
+      ...byNumber(2),
+      status: 'todo',
+      updated_at: '2026-11-16T11:00:00Z',
+    })
+    expect(late.tasks.find((t) => t.number === 2)!.status).toBe('done')
+    const same = upsertTask(newer, {
+      ...byNumber(2),
+      title: 'Echo',
+      updated_at: '2026-11-16T12:00:00Z',
+    })
+    expect(same.tasks.find((t) => t.number === 2)!.title).toBe('Echo')
+  })
+
   it('replaces a task in place and keeps number order', () => {
     const next = upsertTask(seedBoard, { ...byNumber(5), status: 'done' })
     expect(numbers(next.tasks)).toEqual([1, 2, 3, 4, 5, 6, 7])

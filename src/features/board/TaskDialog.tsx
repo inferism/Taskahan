@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { errorKey } from '@/features/home/api'
 import { supabase } from '@/lib/supabase'
 import { Button, Dialog, DialogClose, Input, Select, cn } from '@/ui'
@@ -49,6 +49,14 @@ function TaskForm({ onOpenChange, groupId, members, me, task }: TaskDialogProps)
   const [touched, setTouched] = useState(false)
   const [error, setError] = useState<{ field: string; message: string }>()
   const [busy, setBusy] = useState(false)
+  // A reply can arrive after this form was cancelled and another opened; it must not touch that one.
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   const titleProblem = title.trim() ? undefined : 'Give the task a title'
   const detailsProblem = details.length > 2000 ? 'Keep details under 2,000 characters' : undefined
@@ -71,6 +79,11 @@ function TaskForm({ onOpenChange, groupId, members, me, task }: TaskDialogProps)
     const { data, error: failure } = task
       ? await supabase.rpc('update_task', { p_task_id: task.id, ...args })
       : await supabase.rpc('create_task', { p_group_id: groupId, ...args })
+    if (!mounted.current) {
+      // Cancelled while saving: keep what the server saved, leave the dialog alone.
+      if (!failure && data) patchTask(queryClient, groupId, data as unknown as Task)
+      return
+    }
     setBusy(false)
     if (failure || !data) {
       const key = errorKey(failure) ?? ''

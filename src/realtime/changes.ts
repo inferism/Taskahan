@@ -57,10 +57,8 @@ function pick<K extends string>(row: Row, keys: readonly K[]): Record<K, unknown
   return Object.fromEntries(keys.map((k) => [k, row[k]])) as Record<K, unknown>
 }
 
-/** A task insert or update. An event older than the cached row is ignored; a soft delete removes it. */
+/** A task insert or update. upsertTask ignores a row older than the cached one; a soft delete removes it. */
 export function applyTaskRow(board: Board, row: Row): Board {
-  const cached = board.tasks.find((t) => t.id === row.id)
-  if (cached && Date.parse(String(row.updated_at)) < Date.parse(cached.updated_at)) return board
   const task = pick(row, taskFields) as unknown as Task
   return upsertTask(board, { ...task, deleted_at: (row.deleted_at as string | null) ?? null })
 }

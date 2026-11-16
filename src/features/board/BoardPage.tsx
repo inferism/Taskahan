@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Roster } from '@/features/progress/Roster'
 import { errorKey, groupsKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
@@ -121,18 +121,20 @@ function BoardShell({
   const [tab, setTab] = useState<PhoneTab>('board')
   const [page, setPage] = useState(0)
 
-  // Deep link `/g/:groupId/t/:number`: open that task once per link, whenever the link changes.
+  // Deep link `/g/:groupId/t/:number`: open that task once per navigation to it.
+  const location = useLocation()
   const linked = linkedNumber
     ? board.tasks.find((t) => t.number === Number(linkedNumber))
     : undefined
+  // Each navigation has its own key, so following the same #2 again reopens it. A link counts as
+  // handled only once its task is found: a task that a later snapshot brings still opens.
+  const linkKey = linkedNumber ? location.key : undefined
   const [handledLink, setHandledLink] = useState<string>()
-  if (linkedNumber !== handledLink) {
-    setHandledLink(linkedNumber)
-    if (linked) {
-      setExpanded(linked.assignee_id)
-      setOpenTasks((cur) => ({ ...cur, [linked.assignee_id]: linked.id }))
-      setTab('board')
-    }
+  if (linked && linkKey !== handledLink) {
+    setHandledLink(linkKey)
+    setExpanded(linked.assignee_id)
+    setOpenTasks((cur) => ({ ...cur, [linked.assignee_id]: linked.id }))
+    setTab('board')
   }
   const missingLink = linkedNumber && !linked ? linkedNumber : undefined
 
@@ -179,7 +181,7 @@ function BoardShell({
     return () => cancelAnimationFrame(frame)
     // Only a new link scrolls; later layout or member changes must not yank the board around.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkedId, linkedNumber])
+  }, [linkedId, linkKey])
 
   /** Roster row: show that member's column, expanded. */
   const showMember = useCallback(
@@ -242,9 +244,9 @@ function BoardShell({
       onStatus={(t, status) => !setStatus.isPending && setStatus.mutate({ taskId: t.id, status })}
       statusSaving={setStatus.isPending}
       onEdit={leader ? setEditor : undefined}
+      renderThread={(t) => <QuestionThread board={board} task={t} />}
       failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
       onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}
-      renderThread={(t) => <QuestionThread board={board} task={t} />}
     />
   ))
 

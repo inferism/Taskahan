@@ -78,8 +78,14 @@ export function useBoard(groupId: string) {
   })
 }
 
-/** Insert or replace a task, keeping number order. A soft-deleted task leaves the board. */
+/**
+ * Insert or replace a task, keeping number order. A soft-deleted task leaves the board. A row
+ * older than the cached one (a slow save reply, a late event) is ignored, so it cannot undo a
+ * newer change.
+ */
 export function upsertTask(board: Board, task: Task & { deleted_at?: string | null }): Board {
+  const cached = board.tasks.find((t) => t.id === task.id)
+  if (cached && Date.parse(task.updated_at) < Date.parse(cached.updated_at)) return board
   const rest = board.tasks.filter((t) => t.id !== task.id)
   if (task.deleted_at) return { ...board, tasks: rest }
   const live: Task & { deleted_at?: string | null } = { ...task }

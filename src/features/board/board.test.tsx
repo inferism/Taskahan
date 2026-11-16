@@ -661,3 +661,83 @@ describe('removed while open', () => {
     expect(screen.queryByRole('region', { name: "ana's tasks" })).not.toBeInTheDocument()
   })
 })
+
+describe('second review fixes', () => {
+  beforeAll(() => {
+    Element.prototype.hasPointerCapture = () => false
+    Element.prototype.releasePointerCapture = () => {}
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  it('keeps a dialog opened later when an earlier, cancelled save finally answers', async () => {
+    let answer: () => void = () => {}
+    const created = {
+      ...seedBoard.tasks[0],
+      id: 't8',
+      number: 8,
+      title: 'First task',
+      assignee_id: 'ana',
+      status: 'todo' as const,
+      completed_at: null,
+      deleted_at: null,
+    }
+    rpc.mockImplementation((name: string) =>
+      name === 'get_group_snapshot'
+        ? Promise.resolve({ data: seedBoard, error: null })
+        : new Promise((resolve) => (answer = () => resolve({ data: created, error: null }))),
+    )
+    setWidth(1440)
+    const client = createQueryClient()
+    renderBoard('/g/capstone', client)
+    const addTask = await screen.findByRole('button', { name: 'Add task' })
+    await userEvent.click(addTask)
+    let dialog = await screen.findByRole('dialog', { name: 'Add a task' })
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'First task')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add task' }))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await userEvent.click(addTask)
+    dialog = await screen.findByRole('dialog', { name: 'Add a task' })
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'Second draft')
+    await act(async () => answer())
+
+    expect(screen.getByRole('dialog', { name: 'Add a task' })).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Title')).toHaveValue('Second draft')
+    // The open dialog hides the board from the accessibility tree; the saved task is still there.
+    const ana = screen.getByRole('region', { name: "ana's tasks", hidden: true })
+    expect(await within(ana).findByText('First task')).toBeInTheDocument()
+  })
+
+  it('reopens a task when the same #2 link is followed again after closing it', async () => {
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    const row = within(cara).getByRole('button', { name: /Survey ten students/ })
+    await userEvent.click(screen.getByRole('link', { name: '#2' }))
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(screen.getByRole('link', { name: '#2' }))
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('opens a linked task that only a later snapshot brings', async () => {
+    const client = createQueryClient()
+    setWidth(1440)
+    renderBoard('/g/capstone/t/8', client)
+    expect(await screen.findByRole('status')).toHaveTextContent('Task #8 is not on this board')
+    const late = { ...seedBoard.tasks[4], id: 't8', number: 8, title: 'Arrived late' }
+    rpc.mockResolvedValue({
+      data: { ...seedBoard, tasks: [...seedBoard.tasks, late] },
+      error: null,
+    })
+    await act(() => client.invalidateQueries({ queryKey: ['board', 'capstone'] }))
+    const ben = screen.getByRole('region', { name: "ben's tasks" })
+    expect(within(ben).getByRole('button', { name: /Arrived late/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
