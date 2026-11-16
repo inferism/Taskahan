@@ -1,4 +1,4 @@
-import { upsertMember, upsertTask } from './api'
+import { upsertMember, upsertTask, type Task } from './api'
 import { SEED_NOW, seedBoard, seedBoardAsBen } from './seed.fixture'
 import {
   amLeader,
@@ -9,6 +9,7 @@ import {
   progressOf,
   progressText,
   shownStatus,
+  taskLabel,
   tasksByMember,
 } from './selectors'
 
@@ -157,5 +158,32 @@ describe('cache patches', () => {
     const next = upsertMember(seedBoard, { ...ben, status: 'former', left_reason: 'removed' })
     expect(next.memberships.map((m) => m.seat)).toEqual([1, 2, 3, 4, 5])
     expect(columnMembers(next).map((m) => m.id)).toEqual(['ana', 'cara', 'dev', 'ben', 'eli'])
+  })
+})
+
+describe('task label', () => {
+  const t = (over: Partial<Task>): Task => ({ ...byNumber(5), ...over })
+  const label = (over: Partial<Task>) => taskLabel(t(over), SEED_NOW)?.text ?? undefined
+
+  it('picks blocked, then done, then the deadline', () => {
+    expect(label({ status: 'in_progress', open_questions: 2 })).toBe('Blocked · 2 open questions')
+    expect(label({ status: 'in_progress', open_questions: 1 })).toBe('Blocked · 1 open question')
+    expect(label({ status: 'done', open_questions: 1, completed_at: '2026-11-12T12:00:00' })).toBe(
+      'Done Nov 12',
+    )
+    expect(label({ deadline: null })).toBeUndefined()
+  })
+
+  it('counts overdue in days and flags it', () => {
+    const due = new Date(SEED_NOW.getFullYear(), SEED_NOW.getMonth(), SEED_NOW.getDate() - 2, 9)
+    expect(label({ deadline: due.toISOString() })).toBe('Overdue by 2 days')
+    expect(taskLabel(t({ deadline: due.toISOString() }), SEED_NOW)?.alert).toBe(true)
+  })
+
+  it('writes today with a time and later days with the weekday', () => {
+    const today = new Date(SEED_NOW.getFullYear(), SEED_NOW.getMonth(), SEED_NOW.getDate(), 23, 30)
+    expect(label({ deadline: today.toISOString() })).toBe('Due today, 11:30 PM')
+    const nov20 = new Date(2026, 10, 20, 9)
+    expect(label({ deadline: nov20.toISOString() })).toBe('Due Fri, Nov 20')
   })
 })

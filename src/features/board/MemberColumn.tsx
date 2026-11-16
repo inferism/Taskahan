@@ -1,8 +1,9 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { forwardRef, useState } from 'react'
-import { Avatar, cn, StatusGlyph } from '@/ui'
+import { Avatar, cn } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
-import { deadlineSections, progressOf, progressText, shownStatus } from './selectors'
+import { deadlineSections, progressOf, progressText } from './selectors'
+import { TaskRow } from './TaskRow'
 
 export interface MemberColumnProps {
   member: Member
@@ -13,6 +14,16 @@ export interface MemberColumnProps {
   fullWidth?: boolean
   now: Date
   onExpand?: () => void
+  /** The one task open in this column, if any. */
+  openTaskId?: string
+  onToggleTask?: (task: Task) => void
+  canSetStatus?: (task: Task) => boolean
+  onStatus?: (task: Task, status: Task['status']) => void
+  /** The task whose last status change failed. */
+  failedTaskId?: string
+  onRetryStatus?: () => void
+  /** Leader only: when given, open tasks show Edit. */
+  onEdit?: (task: Task) => void
 }
 
 function statusLine(member: Member, isMe: boolean): string {
@@ -27,7 +38,22 @@ function statusLine(member: Member, isMe: boolean): string {
  * Done is folded to a count until opened.
  */
 export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function MemberColumn(
-  { member, tasks, isMe, expanded, fullWidth, now, onExpand },
+  {
+    member,
+    tasks,
+    isMe,
+    expanded,
+    fullWidth,
+    now,
+    onExpand,
+    openTaskId,
+    onToggleTask,
+    canSetStatus,
+    onStatus,
+    failedTaskId,
+    onRetryStatus,
+    onEdit,
+  },
   ref,
 ) {
   const former = member.status === 'former'
@@ -121,11 +147,18 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
                 )}
                 <ul hidden={folded}>
                   {s.tasks.map((t) => (
-                    <li key={t.id} className="flex min-h-11 items-center gap-2 py-1">
-                      <StatusGlyph status={shownStatus(t)} />
-                      <span className="text-label text-muted">#{t.number}</span>
-                      <span className="min-w-0 flex-1 truncate text-body">{t.title}</span>
-                    </li>
+                    <TaskRow
+                      key={t.id}
+                      task={t}
+                      now={now}
+                      open={openTaskId === t.id}
+                      onToggle={() => onToggleTask?.(t)}
+                      canSetStatus={canSetStatus?.(t) ?? false}
+                      onStatus={(status) => onStatus?.(t, status)}
+                      statusError={failedTaskId === t.id}
+                      onRetry={onRetryStatus}
+                      onEdit={onEdit && (() => onEdit(t))}
+                    />
                   ))}
                 </ul>
               </div>

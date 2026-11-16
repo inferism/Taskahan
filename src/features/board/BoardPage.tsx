@@ -5,10 +5,10 @@ import { Roster } from '@/features/progress/Roster'
 import { errorKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
 import { Avatar, Button, cn } from '@/ui'
-import { avatarUrl, useBoard, type Board } from './api'
+import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
-import { amLeader, columnMembers, myMember, tasksByMember } from './selectors'
+import { amLeader, canSetStatus, columnMembers, myMember, tasksByMember } from './selectors'
 import { TopBar, type Panel } from './TopBar'
 
 type PhoneTab = 'board' | 'progress' | 'chat' | 'logs'
@@ -38,6 +38,9 @@ function BoardShell({ board }: { board: Board }) {
   const [now] = useState(() => new Date())
 
   const [expanded, setExpanded] = useState(board.me)
+  // One open task per column, by member id.
+  const [openTasks, setOpenTasks] = useState<Record<string, string | undefined>>({})
+  const setStatus = useSetTaskStatus(board.group.id)
   const [chosenPanel, setPanel] = useState<Panel | null>(null)
   // Panels only exist on tablets.
   const panel = layout === 'tablet' ? chosenPanel : null
@@ -82,6 +85,14 @@ function BoardShell({ board }: { board: Board }) {
     [layout, members, goToPage],
   )
 
+  const toggleTask = useCallback((task: Task) => {
+    setExpanded(task.assignee_id)
+    setOpenTasks((cur) => ({
+      ...cur,
+      [task.assignee_id]: cur[task.assignee_id] === task.id ? undefined : task.id,
+    }))
+  }, [])
+
   const roster = (
     <Roster members={members} tasksByMember={byMember} me={board.me} onSelect={showMember} />
   )
@@ -100,6 +111,12 @@ function BoardShell({ board }: { board: Board }) {
       fullWidth={layout === 'phone'}
       now={now}
       onExpand={() => setExpanded(m.id)}
+      openTaskId={openTasks[m.id]}
+      onToggleTask={toggleTask}
+      canSetStatus={(t) => canSetStatus(board, t)}
+      onStatus={(t, status) => setStatus.mutate({ taskId: t.id, status })}
+      failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
+      onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}
     />
   ))
 

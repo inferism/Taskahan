@@ -171,3 +171,76 @@ describe('board shell', () => {
     expect(rpc).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('task details and status', () => {
+  const serve = (board = seedBoard) =>
+    rpc.mockImplementation((name: string, args: Record<string, unknown>) => {
+      if (name === 'get_group_snapshot') return Promise.resolve({ data: board, error: null })
+      if (name === 'set_task_status') {
+        const t = board.tasks.find((x) => x.id === args.p_task_id)!
+        return Promise.resolve({
+          data: { ...t, status: args.p_status, deleted_at: null },
+          error: null,
+        })
+      }
+      return Promise.resolve({ data: null, error: null })
+    })
+
+  it('opens one task at a time inside a column', async () => {
+    serve()
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    const row = within(cara).getByRole('button', { name: /Survey ten students/ })
+    expect(row).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
+    expect(within(cara).getByRole('group', { name: 'Task #2 details' })).toBeVisible()
+  })
+
+  it('lets the assignee change status and updates the column', async () => {
+    serve(seedBoardAsBen)
+    setWidth(1440)
+    renderBoard()
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    await userEvent.click(within(ben).getByRole('button', { name: /Book the demo room/ }))
+    await userEvent.click(within(ben).getByRole('radio', { name: 'Done' }))
+    expect(rpc).toHaveBeenCalledWith('set_task_status', { p_task_id: 't5', p_status: 'done' })
+    expect(await within(ben).findByRole('button', { name: 'Done · 2' })).toBeInTheDocument()
+  })
+
+  it('shows status read-only to someone who is neither assignee nor leader', async () => {
+    serve(seedBoardAsBen)
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByRole('button', { name: /Survey ten students/ }))
+    expect(within(cara).queryByRole('radio')).not.toBeInTheDocument()
+    expect(within(cara).getByText('In progress')).toBeInTheDocument()
+  })
+
+  it("lets the leader change anyone's status", async () => {
+    serve()
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByRole('button', { name: /Survey ten students/ }))
+    expect(within(cara).getAllByRole('radio')).toHaveLength(3)
+  })
+
+  it('says so inline when a status change fails, and retries', async () => {
+    serve()
+    rpc.mockImplementationOnce(() => Promise.resolve({ data: seedBoard, error: null }))
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByRole('button', { name: /Survey ten students/ }))
+    rpc.mockImplementationOnce(() =>
+      Promise.resolve({ data: null, error: { message: 'forbidden' } }),
+    )
+    await userEvent.click(within(cara).getByRole('radio', { name: 'Done' }))
+    expect(await within(cara).findByRole('alert')).toHaveTextContent('Could not change the status')
+    await userEvent.click(within(cara).getByRole('button', { name: 'Retry' }))
+    expect(await within(cara).findByRole('button', { name: 'Done · 1' })).toBeInTheDocument()
+  })
+})

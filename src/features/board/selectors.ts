@@ -139,3 +139,47 @@ export function deadlineSections(tasks: Task[], now: Date): DeadlineSection[] {
       return { group: g, label: deadlineGroupLabel[g], tasks: list }
     })
 }
+
+const timeFormat = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
+const dayFormat = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+})
+const shortDayFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+
+export interface TaskLabel {
+  text: string
+  /** Overdue and blocked read in the blocked colour. */
+  alert: boolean
+}
+
+/** The one label line under a task row: blocked, done, or the deadline. */
+export function taskLabel(task: Task, now: Date): TaskLabel | null {
+  if (isBlocked(task)) {
+    const n = task.open_questions
+    return { text: `Blocked · ${n} open question${n === 1 ? '' : 's'}`, alert: true }
+  }
+  if (task.status === 'done') {
+    return task.completed_at
+      ? { text: `Done ${shortDayFormat.format(new Date(task.completed_at))}`, alert: false }
+      : { text: 'Done', alert: false }
+  }
+  if (!task.deadline) return null
+  const due = new Date(task.deadline)
+  const group = deadlineGroup(task, now)
+  if (group === 'overdue') {
+    const days = Math.round((startOfDay(now).getTime() - startOfDay(due).getTime()) / 86_400_000)
+    return {
+      text: days >= 1 ? `Overdue by ${days} day${days === 1 ? '' : 's'}` : 'Overdue today',
+      alert: true,
+    }
+  }
+  if (group === 'today') return { text: `Due today, ${timeFormat.format(due)}`, alert: false }
+  return { text: `Due ${dayFormat.format(due)}`, alert: false }
+}
+
+/** Only the assignee and the leader can change a task's status. */
+export function canSetStatus(board: Board, task: Task): boolean {
+  return task.assignee_id === board.me || amLeader(board)
+}

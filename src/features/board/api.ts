@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
@@ -95,4 +95,28 @@ export function upsertMember(board: Board, member: Member): Board {
 export function avatarUrl(path: string | null): string | null {
   if (!path) return null
   return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl
+}
+
+/** Cache patch for a task row the server just returned. */
+export function patchTask(
+  queryClient: ReturnType<typeof useQueryClient>,
+  groupId: string,
+  task: Task & { deleted_at?: string | null },
+) {
+  queryClient.setQueryData<Board>(boardKey(groupId), (board) => board && upsertTask(board, task))
+}
+
+export function useSetTaskStatus(groupId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: { taskId: string; status: Task['status'] }) => {
+      const { data, error } = await supabase.rpc('set_task_status', {
+        p_task_id: v.taskId,
+        p_status: v.status,
+      })
+      if (error) throw error
+      return data as unknown as Task
+    },
+    onSuccess: (task) => patchTask(queryClient, groupId, task),
+  })
 }
