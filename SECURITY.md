@@ -129,10 +129,10 @@ No inline scripts, no third-party scripts other than Turnstile, fonts self-hoste
 | Turnstile site key | client bundle | Public |
 | Supabase secret (service role) key | Edge Function secrets only | Bypasses row level security. Never in the repo, the client, a `VITE_` variable, logs, or a chat message |
 | Turnstile secret | Supabase Auth settings | |
-| Cron shared secret | Edge Function secrets and the cron job definition | `purge-inactive` rejects calls without it |
+| Cron shared secret | Edge Function secrets and the cron job definition | `purge-inactive` and `sweep-avatars` reject calls without it |
 
 - `.env*` is git-ignored; `.env.example` holds names only.
-- Edge Functions verify the caller's JWT (`set-avatar`) or the cron secret (`purge-inactive`), and use the service key only for the specific admin calls they need.
+- Edge Functions verify the caller's JWT (`set-avatar`) or the cron secret (`purge-inactive`, `sweep-avatars`), and use the service key only for the specific admin calls they need.
 - If a secret is ever committed, rotate it. Removing the commit is not enough.
 
 ## 10. Abuse and quota

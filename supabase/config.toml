@@ -428,3 +428,7 @@ enabled = true
 # 9.2 purge-inactive is called by pg_cron with a shared secret, not a user JWT.
 [functions.purge-inactive]
 verify_jwt = false
+
+# 9.3 sweep-avatars is called by pg_cron with a shared secret, not a user JWT.
+[functions.sweep-avatars]
+verify_jwt = false
