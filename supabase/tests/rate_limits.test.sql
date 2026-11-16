@@ -3,6 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
+-- Tests assume an empty database; seed.sql fills it for local dev. Rolled back.
+delete from public.groups;
+delete from auth.users;
+
 select plan(9);
 
 insert into auth.users (id, email) values
