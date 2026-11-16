@@ -1,0 +1,47 @@
+/* Design tokens from DESIGN.md. Light is the default; [data-theme='dark'] swaps every one. */
+:root {
+  --court: #0c5b49;
+  --court-deep: #08463a;
+  --scoreboard-yellow: #ffc42e;
+  --scoreboard-yellow-hover: #f2b51b;
+  --ground: #eef2ee;
+  --surface: #ffffff;
+  --surface-sunken: #f4f6f4;
+  --line: #d5ddd6;
+  --track: #e3e8e3;
+  --ink: #13211c;
+  --muted: #5b6b64;
+  --done: #1e8e5a;
+  --done-text: #17774b;
+  --blocked: #c93428;
+  --link: #0c5b49;
+  --bar: #0c5b49;
+  --focus: #13211c;
+  --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.18);
+
+  --jersey-royal: #2356d8;
+  --jersey-rust: #b8500c;
+  --jersey-violet: #7b3fe4;
+  --jersey-teal: #0d7f86;
+  --jersey-magenta: #c4267a;
+  --jersey-graphite: #3f4a54;
+  --jersey-steel: #1c75b5;
+  --jersey-brown: #7a4a21;
+}
+
+:root[data-theme='dark'] {
+  --ground: #0b1512;
+  --surface: #12201b;
+  --surface-sunken: #0f1a16;
+  --line: #2a3f36;
+  --track: #22342c;
+  --ink: #e8efea;
+  --muted: #9db0a7;
+  --done: #3fbf82;
+  --done-text: #3fbf82;
+  --blocked: #f0685c;
+  --link: #ffc42e;
+  --bar: #08463a;
+  --focus: #ffc42e;
+  --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.5);
+}

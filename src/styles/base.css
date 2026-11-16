@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+@import '@fontsource/barlow/latin-400.css';
+@import '@fontsource/barlow/latin-500.css';
+@import '@fontsource/barlow/latin-600.css';
+@import '@fontsource/barlow/latin-700.css';
+@import '@fontsource/barlow-condensed/latin-700.css';
+@import './tokens.css';
+
+@theme inline {
+  --color-court: var(--court);
+  --color-court-deep: var(--court-deep);
+  --color-yellow: var(--scoreboard-yellow);
+  --color-yellow-hover: var(--scoreboard-yellow-hover);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-track: var(--track);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-done: var(--done);
+  --color-done-text: var(--done-text);
+  --color-blocked: var(--blocked);
+  --color-link: var(--link);
+  --color-bar: var(--bar);
+  --color-focus: var(--focus);
+  --color-jersey-royal: var(--jersey-royal);
+  --color-jersey-rust: var(--jersey-rust);
+  --color-jersey-violet: var(--jersey-violet);
+  --color-jersey-teal: var(--jersey-teal);
+  --color-jersey-magenta: var(--jersey-magenta);
+  --color-jersey-graphite: var(--jersey-graphite);
+  --color-jersey-steel: var(--jersey-steel);
+  --color-jersey-brown: var(--jersey-brown);
+
+  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+
+  /* The five sizes (plus the 13px deadline heading) */
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.35;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.45;
+  --text-title: 1rem;
+  --text-title--line-height: 1.35;
+  --text-name: 1.375rem;
+  --text-name--line-height: 1;
+  --text-tally: 2.75rem;
+  --text-tally--line-height: 1;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --shadow-overlay: var(--overlay-shadow);
+}
+
+@layer base {
+  html {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-size: 0.875rem;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--scoreboard-yellow);
+    color: #13211c;
+  }
+  input,
+  textarea {
+    caret-color: var(--ink);
+  }
+  * {
+    scrollbar-color: var(--line) var(--ground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
