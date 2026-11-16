@@ -10,8 +10,8 @@ export interface RosterProps {
 }
 
 /**
- * Task Progress: one row per member in column order. The shell places it (4.2); the full roster
- * with its stacked bars is task 4.6.
+ * Task Progress: one row per member in column order, with the same numbers as the column header.
+ * Done is green, In progress yellow, the rest left as track; Blocked is an indicator on top.
  */
 export function Roster({ members, tasksByMember, me, onSelect }: RosterProps) {
   return (
@@ -46,11 +46,18 @@ export function Roster({ members, tasksByMember, me, onSelect }: RosterProps) {
                       {m.id === me && ' · You'}
                     </span>
                   </span>
-                  <span aria-hidden className="flex h-1.5 overflow-hidden rounded-full bg-track">
+                  <span
+                    role="img"
+                    aria-label={`${p.done} done, ${p.inProgress} in progress, ${p.todo} to do`}
+                    className="flex h-1.5 overflow-hidden rounded-full bg-track"
+                  >
                     <span className="bg-done" style={{ width: `${pct(p.done)}%` }} />
                     <span className="bg-yellow" style={{ width: `${pct(p.inProgress)}%` }} />
                   </span>
-                  <span className="flex items-center gap-1 text-label text-muted">
+                  <span
+                    data-progress={m.id}
+                    className="flex items-center gap-1 text-label text-muted"
+                  >
                     {progressText(p)}
                     {p.blocked > 0 && (
                       <>

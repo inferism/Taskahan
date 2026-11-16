@@ -345,3 +345,48 @@ describe('add and edit task', () => {
     expect(rpc).not.toHaveBeenCalledWith('create_task', expect.anything())
   })
 })
+
+describe('task progress roster', () => {
+  it('shows the same numbers as every column on the seed data', async () => {
+    setWidth(1440)
+    renderBoard()
+    const roster = await screen.findByRole('region', { name: 'Task Progress' })
+    const expected: Record<string, string> = {
+      ana: 'No tasks yet',
+      ben: '1 of 2 completed',
+      cara: '0 of 1 completed',
+      dev: '1 of 2 completed · 1 blocked',
+      eli: '0 of 2 completed',
+    }
+    for (const [id, text] of Object.entries(expected)) {
+      const row = roster.querySelector(`[data-progress="${id}"]`)!
+      // The blocked glyph is an SVG with a "?" in it.
+      expect(row.textContent?.replace('?', '')).toBe(text)
+      const column = screen.getByRole('region', { name: `${id}'s tasks` })
+      expect(within(column).getAllByText(/completed|No tasks yet/)[0]).toHaveTextContent(
+        text.split(' · ')[0],
+      )
+    }
+  })
+
+  it('draws the stacked bar from done and in progress', async () => {
+    setWidth(1440)
+    renderBoard()
+    const roster = await screen.findByRole('region', { name: 'Task Progress' })
+    expect(
+      within(roster).getByRole('img', { name: '1 done, 0 in progress, 1 to do' }),
+    ).toBeInTheDocument()
+    expect(
+      within(roster).getByRole('img', { name: '0 done, 1 in progress, 0 to do' }),
+    ).toBeInTheDocument()
+  })
+
+  it("jumps to a member's column when their row is clicked", async () => {
+    setWidth(1440)
+    renderBoard()
+    const roster = await screen.findByRole('region', { name: 'Task Progress' })
+    await userEvent.click(within(roster).getByRole('button', { name: /^cara/ }))
+    const cara = screen.getByRole('region', { name: "cara's tasks" })
+    expect(within(cara).getAllByRole('button')[0]).toHaveAttribute('aria-expanded', 'true')
+  })
+})
