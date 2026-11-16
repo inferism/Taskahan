@@ -2,6 +2,8 @@
 --   1. Two parallel failed joins at nine failures cannot both get through.
 --   2. A leader editing a task and an assignee changing a status at the same
 --      time do not deadlock.
+--   3. The last member leaving (which deletes the group) while another of
+--      their sessions saves a task does not deadlock.
 --
 -- Same approach as join_concurrency.test.sql: real sessions over dblink,
 -- fixtures committed through a setup connection and deleted at the end.
@@ -11,7 +13,7 @@ create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 set search_path = public, extensions;
 
-select plan(10);
+select plan(14);
 
 create function pg_temp.connstr() returns text language sql as $$
   select format('host=%s port=%s dbname=%s user=postgres password=postgres',
@@ -93,26 +95,25 @@ select is(
      'Two edited', '', '20000000-0000-0000-0000-0000000000e2', null)).title $$) as t(r text)),
   'Two edited', 'the leader edits one task');
 
--- The assignee changes #1. Its log insert must not wait on the group lock.
+-- The assignee changes #1. It takes the group lock before any task, so it
+-- waits its turn holding nothing the leader needs.
 select dblink_exec('d', 'begin');
 select dblink_send_query('d', $$ select (public.set_task_status('30000000-0000-0000-0000-0000000000e1',
   'in_progress')).status::text $$);
 select pg_sleep(0.5);
-select is(dblink_is_busy('d'), 0, 'a status change does not wait on the leader''s group lock');
-select is((select r from dblink_get_result('d') as t(r text)), 'in_progress', 'the status change completes');
-select * from dblink_get_result('d') as t(r text);
+select is(dblink_is_busy('d'), 1, 'the status change waits at the group lock, before locking its task');
 
--- Now the leader edits #1, which the assignee still holds: a plain wait.
-select dblink_send_query('c', $$ select (public.update_task('30000000-0000-0000-0000-0000000000e1',
-  'One edited', '', '20000000-0000-0000-0000-0000000000e2', null)).title $$);
-select pg_sleep(0.5);
-select is(dblink_is_busy('c'), 1, 'the leader waits for the assignee''s task lock');
-
-select dblink_exec('d', 'commit');
-select is((select r from dblink_get_result('c') as t(r text)), 'One edited',
-  'once the assignee commits, the leader''s edit goes through with no deadlock');
-select * from dblink_get_result('c') as t(r text);
+-- So the leader can still edit #1 in the same open transaction.
+select is(
+  (select r from dblink('c', $$ select (public.update_task('30000000-0000-0000-0000-0000000000e1',
+     'One edited', '', '20000000-0000-0000-0000-0000000000e2', null)).title $$) as t(r text)),
+  'One edited', 'the leader edits the task the assignee is waiting on, with no deadlock');
 select dblink_exec('c', 'commit');
+
+select is((select r from dblink_get_result('d') as t(r text)), 'in_progress',
+  'once the leader commits, the status change completes');
+select * from dblink_get_result('d') as t(r text);
+select dblink_exec('d', 'commit');
 
 select is(
   (select r from dblink('setup', $$
@@ -120,16 +121,71 @@ select is(
       where id = '30000000-0000-0000-0000-0000000000e1' $$) as t(r text)),
   'One edited/in_progress', 'both changes to #1 are kept');
 
+-- ---------------------------------------------------------------------------
+-- 3. The last member leaves while another of their sessions saves a task
+-- ---------------------------------------------------------------------------
+
+-- E4 is alone in group "Solo" with tasks #1 (in progress) and #2.
+select dblink_exec('setup', $$
+  insert into auth.users (id, email) values
+    ('00000000-0000-0000-0000-0000000000e4', 'lock_solo@users.taskahan.pages.dev');
+  insert into public.groups (id, name, purpose, member_limit, join_code, next_seat, next_task_number) values
+    ('10000000-0000-0000-0000-0000000000e4', 'Solo', 'other', 5, 'SOLOOOOO', 2, 3);
+  insert into public.memberships (id, group_id, user_id, display_name, seat, role) values
+    ('20000000-0000-0000-0000-0000000000e4', '10000000-0000-0000-0000-0000000000e4',
+     '00000000-0000-0000-0000-0000000000e4', 'lock_solo', 1, 'leader');
+  insert into public.tasks (id, group_id, number, title, assignee_id, created_by, status) values
+    ('30000000-0000-0000-0000-0000000000e4', '10000000-0000-0000-0000-0000000000e4', 1, 'One',
+     '20000000-0000-0000-0000-0000000000e4', '20000000-0000-0000-0000-0000000000e4', 'in_progress'),
+    ('30000000-0000-0000-0000-0000000000e5', '10000000-0000-0000-0000-0000000000e4', 2, 'Two',
+     '20000000-0000-0000-0000-0000000000e4', '20000000-0000-0000-0000-0000000000e4', 'todo');
+$$);
+
+select pg_temp.connect_as('e', '00000000-0000-0000-0000-0000000000e4');
+select pg_temp.connect_as('f', '00000000-0000-0000-0000-0000000000e4');
+
+-- Session E saves #1 (no change, so no log yet) and keeps its transaction open.
+select dblink_exec('e', 'begin');
+select is(
+  (select r from dblink('e', $$ select (public.set_task_status('30000000-0000-0000-0000-0000000000e4',
+     'in_progress')).status::text $$) as t(r text)),
+  'in_progress', 'one session saves a task');
+
+-- Session F leaves, which deletes the group. It must wait at the group lock,
+-- not grab the group and then wait on the task E holds.
+select dblink_send_query('f', $$ select public.leave_group('10000000-0000-0000-0000-0000000000e4')::text $$);
+select pg_sleep(0.5);
+select is(dblink_is_busy('f'), 1, 'leaving waits for the save in flight');
+
+-- E saves #2, which logs and so needs the group: no deadlock.
+select is(
+  (select r from dblink('e', $$ select (public.set_task_status('30000000-0000-0000-0000-0000000000e5',
+     'done')).status::text $$) as t(r text)),
+  'done', 'the same session saves another task while the leave waits');
+select dblink_exec('e', 'commit');
+
+select * from dblink_get_result('f', false) as t(r text);
+select is(dblink_error_message('f'), 'OK', 'the leave completes once the save commits');
+select * from dblink_get_result('f', false) as t(r text);
+select is(
+  (select r::int from dblink('setup', $$
+     select count(*)::text from public.groups where id = '10000000-0000-0000-0000-0000000000e4' $$) as t(r text)),
+  0, 'the group is deleted');
+
 -- Clean up the committed fixtures.
 select dblink_exec('setup', $$
-  delete from public.groups where id = '10000000-0000-0000-0000-0000000000e1';
+  delete from public.groups where id in ('10000000-0000-0000-0000-0000000000e1',
+    '10000000-0000-0000-0000-0000000000e4');
   delete from auth.users where id in ('00000000-0000-0000-0000-0000000000e1',
-    '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000e3');
+    '00000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000e3',
+    '00000000-0000-0000-0000-0000000000e4');
 $$);
 select dblink_disconnect('a');
 select dblink_disconnect('b');
 select dblink_disconnect('c');
 select dblink_disconnect('d');
+select dblink_disconnect('e');
+select dblink_disconnect('f');
 select dblink_disconnect('setup');
 
 select * from finish();

@@ -219,7 +219,7 @@ set search_path = ''
 as $$
 declare
   v_group_id uuid := private.live_task_group(p_task_id);
-  v_me public.memberships := private.caller_seat(v_group_id);
+  v_me public.memberships := private.caller_seat(v_group_id, true);
   v_old public.tasks;
   v_task public.tasks;
 begin
@@ -272,7 +272,7 @@ begin
   if not found then
     raise exception 'forbidden' using errcode = 'insufficient_privilege';
   end if;
-  v_me := private.caller_seat(v_from.group_id);
+  v_me := private.caller_seat(v_from.group_id, true);
 
   if v_from.status <> 'former' then
     raise exception 'invalid_input' using errcode = 'invalid_parameter_value', detail = 'from_member_id';

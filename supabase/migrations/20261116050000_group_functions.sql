@@ -17,7 +17,13 @@
 -- SHARE locks that foreign key checks take when rows are inserted (logs,
 -- tasks, messages...). FOR UPDATE does: a leader holding the group while an
 -- assignee's log insert waits on it, each holding what the other needs, is a
--- deadlock. Lock order is group, then membership or task, then thread.
+-- deadlock.
+--
+-- Every write function locks the group row first (caller_seat(..., true) or
+-- caller_leader_seat), then memberships or tasks, then threads. Deleting the
+-- group (the last member leaving) takes the group lock first too, so it waits
+-- for any write in flight instead of deadlocking on that write's task locks.
+-- Writes are serialized per group, which is cheap at 30 members.
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers

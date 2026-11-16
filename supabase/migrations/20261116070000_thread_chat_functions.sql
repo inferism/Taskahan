@@ -100,7 +100,7 @@ set search_path = ''
 as $$
 declare
   v_group_id uuid := private.live_task_group(p_task_id);
-  v_me public.memberships := private.caller_seat(v_group_id);
+  v_me public.memberships := private.caller_seat(v_group_id, true);
   v_body text := private.check_body(p_body);
   v_task public.tasks;
   v_thread public.threads;
@@ -137,7 +137,7 @@ set search_path = ''
 as $$
 declare
   v_group_id uuid := private.live_thread_group(p_thread_id);
-  v_me public.memberships := private.caller_seat(v_group_id);
+  v_me public.memberships := private.caller_seat(v_group_id, true);
   v_body text := private.check_body(p_body);
   v_thread public.threads;
   v_number int;
@@ -171,7 +171,7 @@ set search_path = ''
 as $$
 declare
   v_group_id uuid := private.live_thread_group(p_thread_id);
-  v_me public.memberships := private.caller_seat(v_group_id);
+  v_me public.memberships := private.caller_seat(v_group_id, true);
   v_old public.threads;
   v_thread public.threads;
   v_number int;
@@ -221,7 +221,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_me public.memberships := private.caller_seat(p_group_id);
+  v_me public.memberships := private.caller_seat(p_group_id, true);
   v_body text := private.check_body(p_body);
   v_message public.messages;
 begin
