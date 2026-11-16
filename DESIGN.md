@@ -6,6 +6,8 @@ colors:
   court-deep: "#08463A"
   scoreboard-yellow: "#FFC42E"
   scoreboard-yellow-hover: "#F2B51B"
+  on-yellow: "#13211C"
+  on-status: "#FFFFFF"
   ground: "#EEF2EE"
   surface: "#FFFFFF"
   surface-sunken: "#F4F6F4"
@@ -32,7 +34,9 @@ colors:
   ink-dark: "#E8EFEA"
   muted-dark: "#9DB0A7"
   done-dark: "#3FBF82"
+  done-text-dark: "#3FBF82"
   blocked-dark: "#F0685C"
+  on-status-dark: "#0B1512"
 typography:
   tally:
     fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
@@ -79,11 +83,14 @@ components:
     textColor: "{colors.surface}"
     height: "56px"
     padding: "0 24px"
+  top-bar-dark:
+    backgroundColor: "{colors.court-deep}"
   button-primary:
     backgroundColor: "{colors.scoreboard-yellow}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.on-yellow}"
+    typography: "{typography.body}"
     rounded: "{rounded.md}"
-    padding: "9px 16px"
+    padding: "0 16px"
     height: "40px"
   button-primary-hover:
     backgroundColor: "{colors.scoreboard-yellow-hover}"
@@ -91,14 +98,60 @@ components:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
-    padding: "9px 16px"
+    padding: "0 16px"
     height: "40px"
+  button-secondary-hover:
+    backgroundColor: "{colors.surface-sunken}"
+  button-quiet-hover:
+    backgroundColor: "{colors.surface-sunken}"
+    textColor: "{colors.ink}"
+  button-destructive:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.blocked}"
+    rounded: "{rounded.md}"
+    padding: "0 16px"
+    height: "40px"
+  button-destructive-hover:
+    backgroundColor: "{colors.blocked}"
+    textColor: "{colors.on-status}"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
+    typography: "{typography.title}"
     rounded: "{rounded.md}"
-    padding: "10px 12px"
+    padding: "0 12px"
     height: "44px"
+  segment-selected:
+    backgroundColor: "{colors.scoreboard-yellow}"
+    textColor: "{colors.on-yellow}"
+    height: "40px"
+    padding: "0 12px"
+  tab:
+    textColor: "{colors.muted}"
+    typography: "{typography.body}"
+    height: "44px"
+    padding: "0 16px"
+  task-row:
+    rounded: "{rounded.md}"
+    height: "44px"
+  task-details:
+    backgroundColor: "{colors.surface-sunken}"
+    rounded: "{rounded.md}"
+    padding: "12px"
+  purpose-chip:
+    textColor: "{colors.muted}"
+    typography: "{typography.label}"
+    rounded: "{rounded.full}"
+    padding: "0 8px"
+  dialog:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.lg}"
+    padding: "24px"
+    width: "440px"
+  menu:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.lg}"
+    padding: "4px"
   jersey-tile:
     backgroundColor: "{colors.jersey-royal}"
     textColor: "{colors.surface}"
@@ -111,8 +164,6 @@ components:
   member-column-expanded:
     width: "408px"
 ---
-
-<!-- SEED: established with the user before implementation; re-run /impeccable document once there's code to capture the actual tokens and components. -->
 
 # Design System: Taskahan
 
@@ -139,13 +190,14 @@ Voice is plain and short. Buttons name their action ("Add task", "Take over task
 
 ## Colors
 
-A committed court-green shell over a cool green-white ground, with scoreboard yellow for the one primary action and eight jersey colours for the people. All values live in the frontmatter; dark-theme counterparts carry the `-dark` suffix.
+A committed court-green shell over a cool green-white ground, with scoreboard yellow for the one primary action and eight jersey colours for the people. All values live in the frontmatter; dark-theme counterparts carry the `-dark` suffix. In code they are CSS custom properties in `src/styles/tokens.css`, light on `:root` and swapped under `[data-theme='dark']`, exposed to Tailwind through `@theme inline` in `src/styles/base.css` (so `bg-surface`, `text-muted` and the rest follow the theme with no `dark:` variants).
 
 ### Primary
-- **Court Green** (`court`, `court-deep`): the top bar in both themes, the active tab underline, text links, task-number references in chat. `court-deep` is the group switcher's fill inside the bar and the bar itself in the dark theme.
+- **Court Green** (`court`, `court-deep`): the top bar, the active tab underline, text links, task-number references in chat. `court-deep` is the group switcher's fill inside the bar and the bar itself in the dark theme.
+- **Role aliases.** The code reads four colours through role tokens so each theme can point them elsewhere: `--bar` (the top bar: `court` light, `court-deep` dark), `--link` (`court` light, `scoreboard-yellow` dark), `--tab-line` (same as link) and `--focus` (`ink` light, `scoreboard-yellow` dark). Use the role token, not the raw colour, for those four jobs.
 
 ### Secondary
-- **Scoreboard Yellow** (`scoreboard-yellow`): the primary button, the selected segment of the status control, the In progress fill, and the brief wash on a row that someone else just changed. Text on yellow is always `ink`.
+- **Scoreboard Yellow** (`scoreboard-yellow`): the primary button, the selected segment of the status control, the In progress fill, and the brief wash on a row that someone else just changed. Text on yellow is always `on-yellow`, which stays dark ink in both themes (it does not flip with `ink`), and so is the text-selection colour.
 
 ### Tertiary
 - **Jersey colours** (`jersey-royal`, `jersey-rust`, `jersey-violet`, `jersey-teal`, `jersey-magenta`, `jersey-graphite`, `jersey-steel`, `jersey-brown`): member identity. A member's seat number picks the colour in that order and wraps after eight; the number itself tells apart two members who share a colour. Numerals on a jersey are always white, and every jersey colour clears 4.5:1 against white. Jersey colour appears only on the jersey tile and the chat avatar, never on task rows or bars.
@@ -164,6 +216,7 @@ A committed court-green shell over a cool green-white ground, with scoreboard ye
 - **To do**: hollow circle in `muted`.
 - **Blocked** (`blocked` / `blocked-dark`): rounded square with a question mark, plus the words "Blocked · 1 open question".
 - **Online**: a filled `done` dot with the word "Online". Offline is a hollow ring with the word "Offline".
+- **Marks on status fills** (`on-status` / `on-status-dark`): the done check, the blocked question mark and the text of a destructive button on hover. White in the light theme; near-black in the dark theme, because the dark status fills are light enough that white falls under 3:1.
 
 ### Named Rules
 **The Reserved Hues Rule.** Green, yellow and red belong to status. No jersey, badge, illustration or decoration may use them. If it is green, something is done or online; if it is yellow, something is in progress or is the main action; if it is red, someone is stuck or the action is destructive.
@@ -177,7 +230,7 @@ A committed court-green shell over a cool green-white ground, with scoreboard ye
 **Display Font:** Barlow Condensed (with Arial Narrow, sans-serif)
 **Body Font:** Barlow (with system-ui, sans-serif)
 
-**Character:** One family at two widths, the way a scoreboard painter uses one alphabet for the team names and the score. Condensed bold caps carry names and numbers; the regular width carries everything a person has to read and type. Both are self-hosted.
+**Character:** One family at two widths, the way a scoreboard painter uses one alphabet for the team names and the score. Condensed bold caps carry names and numbers; the regular width carries everything a person has to read and type. Both are self-hosted through `@fontsource` (Barlow 400, 500, 600, 700; Barlow Condensed 700, Latin subset only). Tabular figures are set once on `html`, so every numeral is tabular by default.
 
 ### Hierarchy
 - **Tally** (700, 2.75rem, line-height 1, tabular numerals): the done-of-total number in a column header ("4/6", with the total set in `muted` at the Name size), and the wordmark on the log in screen.
@@ -193,7 +246,7 @@ A committed court-green shell over a cool green-white ground, with scoreboard ye
 
 ## Layout
 
-The grid is a 4px base with the spacing scale in the frontmatter. Panels are separated by 1px lines, not by gaps or shadows; inside a panel, related rows sit 8 to 12px apart and groups are separated by 20 to 24px, with more space above a heading than below it.
+The grid is a 4px base with the spacing scale in the frontmatter. Two breakpoint systems are in play: the board's three layouts switch at 768 and 1280px (`useLayout`), while control heights drop from 44 to 40px at Tailwind's `sm` (640px) and dialogs become sheets below it. Panels are separated by 1px lines, not by gaps or shadows; inside a panel, related rows sit 8 to 12px apart and groups are separated by 20 to 24px, with more space above a heading than below it.
 
 ### App shell
 - **Top bar** (56px, court green, both themes): wordmark, group switcher (group name, purpose chip), join code with copy button, then on the right the online count, Add task (leader only), and your avatar menu (Settings, Log out). On Home and Settings the switcher and code are absent.
@@ -203,7 +256,7 @@ The grid is a 4px base with the spacing scale in the frontmatter. Panels are sep
 
 ### Board
 - Column order: your own column first, then active members by seat number, then former members.
-- Columns are 248px collapsed and 408px expanded. Your own column starts expanded. Selecting another column's header expands it and collapses the previous one. On phones every column is full width and always expanded.
+- Columns are 248px collapsed and 408px expanded, animating width over 200ms; a collapsed column takes a `surface-sunken` fill on hover. Your own column starts expanded. Selecting another column's header expands it and collapses the previous one. On phones every column is full width and always expanded.
 - Inside a column, tasks are grouped under deadline headings in this order: Overdue, Today, This week, Later, No deadline, Done. Done is folded to a count ("Done · 4") until opened.
 - Selecting a task opens its details inline beneath the row: status control, details text, deadline, the question thread. One task open per column. Selecting a task in a collapsed column expands that column first.
 - The leader sees "Edit" on each open task and "Add task" in the top bar. The form is a dialog on desktop and a full-screen sheet on phones: title, details, assignee (a select listing active members by jersey), deadline.
@@ -221,14 +274,17 @@ One row per member, same order as the columns: jersey tile, name, role, online s
 - **Settings:** avatar, theme (System, Light, Dark as a segmented control), log out.
 
 ### States every screen owes
-Loading shows the real layout with `track`-coloured bars in place of text; no spinners on the board. Empty states say what to do next in one sentence. Errors appear inline next to the thing that failed, with a Retry button; toasts are for confirmations only. When the connection drops, a bar under the top bar says "Reconnecting…" and clears itself.
+Loading shows the real layout with `track`-coloured bars in place of text; no spinners on the board. Empty states say what to do next in one sentence. Errors appear inline next to the thing that failed, with a Retry button; toasts are for confirmations only. When the connection drops, a strip under the top bar says "Reconnecting…" and clears itself: `surface-sunken` fill, 1px `line` bottom border, Body text in `muted`, announced as a status.
+
+Progress bars everywhere (column header, roster, Home) are 6px tall and fully round, `track` underneath with Done then In progress segments laid left to right.
 
 ## Elevation & Depth
 
 Flat. Surfaces sit on the ground separated by 1px lines and by the difference between `ground` and `surface`. Nothing has a shadow at rest.
 
 ### Shadow Vocabulary
-- **Overlay** (`box-shadow: 0 8px 24px rgb(19 33 28 / 0.18)` plus a 1px line): dialogs, menus, toasts, and the slide-over roster and dock between 768 and 1279px. In the dark theme the shadow alpha is 0.5 and the 1px line does most of the work.
+- **Overlay** (`box-shadow: 0 8px 24px rgb(19 33 28 / 0.18)` plus a 1px line, token `--overlay-shadow`, Tailwind `shadow-overlay`): dialogs, menus, toasts, and the slide-over roster and dock between 768 and 1279px. In the dark theme the shadow alpha is 0.5 and the 1px line does most of the work.
+- **Scrim**: behind a dialog, `ink` at 40%.
 
 ### Named Rules
 **The Flat At Rest Rule.** A shadow means "this is floating above the page and will go away". If it stays, it gets a line instead.
@@ -239,7 +295,7 @@ Small, even corners: 4px on status squares and chips inside rows, 6px on control
 
 ## Components
 
-Specified here from the chosen direction; none is built yet.
+As built. The shared primitives live in `src/ui` (`Button`, `Input`, `Select`, `SegmentedControl`, `Tabs`, `Dialog`, `Toast`, `Avatar`, `StatusGlyph`); the product pieces live with their feature under `src/features`. `src/ui/Gallery.tsx` renders every primitive in every state for a visual check.
 
 ### Jersey tile (signature)
 A square with 6px corners in the member's jersey colour, their seat number in white Barlow Condensed 700, always two digits ("07"). Sizes: 52px in column headers, 36px in the roster, 28px in chat.
@@ -249,41 +305,46 @@ A square with 6px corners in the member's jersey colour, their seat number in wh
 
 ### Scoreboard header (signature)
 The head of every column: jersey tile, name in condensed caps, a status line beneath it ("Online · You", "Leader", "Former member"), and the tally at the right. Below it, the member's progress bar and the "4 of 6 completed" line.
-- **The tally roll:** when a task is marked done, the done digit rolls up to its new value over 240ms with an ease-out curve, for everyone in the group at once. When a task is reopened it rolls down. With reduced motion the number simply changes.
+- **The tally roll:** when a task is marked done, the done digit rolls up to its new value over 240ms with an ease-out curve (`cubic-bezier(0.22, 1, 0.36, 1)`), for everyone in the group at once. When a task is reopened it rolls down. With reduced motion the number simply changes.
 - **Former member header:** `surface-sunken` background, name shown as "#Renz", and a "Take over tasks" secondary button under the task list.
 
 ### Task row
-Status glyph, task number in `muted`, title, and one label line: the deadline ("Due today, 6:00 PM", "Due Fri, Nov 20", "Overdue by 2 days" in `blocked`), or "Blocked · 1 open question", or "Done Nov 12". Minimum height 44px. Hover and keyboard focus give the row a `surface-sunken` fill. A row changed by someone else flashes a `scoreboard-yellow` wash at 30% that fades over 600ms.
+Status glyph, task number in `muted`, title, and one label line: the deadline ("Due today, 6:00 PM", "Due Fri, Nov 20", "Overdue by 2 days" in `blocked`), or "Blocked · 1 open question", or "Done Nov 12". Minimum height 44px, 6px corners. Hover and keyboard focus give the row a `surface-sunken` fill. A row changed by someone else flashes a `scoreboard-yellow` wash at 30% that fades over 600ms (ease-out). The open task's details sit beneath the row in a sunken block: `surface-sunken`, 6px corners, 12px padding, 12px between its parts.
 
 ### Status control
-A three-part segmented control: To do, In progress, Done. The selected segment is yellow with ink text. Only the assignee and the leader can use it; for everyone else it is replaced by the status written as text with its glyph. Blocked is not a segment: it appears on its own when a question is open and clears when the question is resolved.
+A three-part segmented control: To do, In progress, Done. The group has a 1px `ink` border and 6px corners, segments are split by 1px `ink` lines, 44px tall (40px from 640px up), with a `surface-sunken` hover. The selected segment is yellow with `on-yellow` text. The same control sets the theme in Settings. Only the assignee and the leader can use it; for everyone else it is replaced by the status written as text with its glyph. Blocked is not a segment: it appears on its own when a question is open and clears when the question is resolved.
 
 ### Question thread
 Inside the open task. Each entry: small jersey tile, name, time, text. "Ask a question" is available to the assignee; a reply box to every member. The opener and the leader see "Mark resolved"; a resolved thread folds to one line ("Resolved by Jamie · 2 replies") with "Reopen".
 
 ### Buttons
-- **Shape:** 6px corners, 40px tall (44px on phones), label in Barlow 600.
-- **Primary:** scoreboard yellow with ink text. One per view.
-- **Secondary:** surface fill, 1px ink border, ink text.
+- **Shape:** 6px corners, 44px tall below 640px and 40px from there up, 16px side padding, label in Body at 600. Secondary is the default variant.
+- **Primary:** scoreboard yellow with `on-yellow` text; `scoreboard-yellow-hover` on hover. One per view.
+- **Secondary:** surface fill, 1px ink border, ink text; `surface-sunken` on hover.
 - **Quiet:** no border, ink text, `surface-sunken` on hover. Used for Cancel and for icon buttons.
-- **Destructive:** surface fill, 1px `blocked` border and text; fills `blocked` with white text on hover. Used for Remove member, Leave group, Delete task.
-- **Hover / Focus:** fills change in 120ms. Focus shows a 2px ring offset by 2px, `ink` in the light theme and `scoreboard-yellow` in the dark theme and on the top bar.
+- **Destructive:** surface fill, 1px `blocked` border and text; fills `blocked` with `on-status` text on hover. Used for Remove member, Leave group, Delete task.
+- **Hover / Focus:** fills change in 120ms. Focus shows a 2px ring offset by 2px in `--focus` (`ink` light, `scoreboard-yellow` dark), set once globally on `:focus-visible`; on the top bar it is always yellow.
+- **Top bar buttons:** 40px, white Body 600 text, no border, white at 15% on hover and when their panel is open. The group switcher sits on a `court-deep` fill.
 - **Disabled:** 45% opacity, no hover. **Busy:** label swaps to the action in progress ("Adding…"), width held.
 
 ### Inputs / Fields
-- **Style:** surface fill, 1px `line` border, 6px corners, 44px tall, 16px text, label above in Label size at weight 600.
+- **Style:** surface fill, 1px `line` border, 6px corners, 44px tall at every width, 12px side padding, 16px text, placeholder in `muted`, label 4px above in Label size at weight 600. Helper text sits 4px below in `muted`.
 - **Focus:** border turns `ink` with the 2px focus ring.
-- **Error:** border turns `blocked`, message below in `blocked` with the problem and the fix ("Codes are 8 letters, A to Z").
-- **Join code field:** Barlow Condensed 700 at 22px, 0.18em tracking, centred.
+- **Error:** border turns `blocked`, message below in `blocked` with the problem and the fix ("Codes are 8 letters, A to Z"), tied to the field with `aria-describedby`.
+- **Disabled:** 45% opacity.
+- **Join code field** (Create, Join, Group settings): the system monospace face at 16px with 0.15em tracking, so the eight letters line up for checking. It is the one place a non-Barlow face appears. The code shown in the top bar is Barlow Condensed 700 at 16px with 0.18em tracking.
 
 ### Chips
-The purpose chip: fully round, Label size, white at 15% on the top bar and `surface-sunken` with `muted` text elsewhere. Informational only, never clickable.
+The purpose chip: fully round, Label size, 8px side padding. On the top bar it is white at 15% with white text (hidden on phones); on Home it is a 1px `line` outline with `muted` text. Informational only, never clickable.
 
 ### Tabs
-Text tabs with a 3px court-green underline on the active one (yellow in the dark theme). Used in the dock and, as the bottom bar on phones, with a 20px icon above each label.
+Text tabs, 44px tall, Body 600 in `muted`, turning `ink` on hover and when active, with a 3px underline in `--tab-line` (court green light, yellow dark) on the active one and a 1px `line` rule under the whole row. Used in the dock and, as the bottom bar on phones, with a 20px icon above each label.
+
+### Menus
+The group switcher and member menus: `surface`, 1px `line`, 8px corners, overlay shadow, 4px inset. Items are 40px tall with 6px corners and a `surface-sunken` highlight; the current item carries a check.
 
 ### Dialogs
-8px corners, overlay shadow, 440px wide on desktop, full-screen sheet on phones. Title in Title size, one primary and one quiet button, primary on the right.
+8px corners, 1px `line`, overlay shadow over an `ink` 40% scrim, 24px padding with 16px between parts, 440px wide from 640px up, a full-screen sheet below. Title in Title size, buttons right-aligned with the primary on the right.
 - **Transfer leadership:** "Make Bea the leader? You will become a member and lose access to Logs and task editing. Only Bea can undo this." Buttons: "Make Bea the leader", "Cancel".
 - **Remove member:** states that their column stays as a former member and their access ends, with a checkbox "Also change the join code" ticked by default.
 - **Take over tasks:** lists the former member's tasks with checkboxes, open tasks ticked, done tasks unticked. Button reads "Take over 2 tasks".
