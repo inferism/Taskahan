@@ -4,6 +4,8 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { BoardPage } from './BoardPage'
+import { TaskRefs } from './TaskRefs'
+import { splitTaskRefs } from './taskLinks'
 import { seedBoard, seedBoardAsBen } from './seed.fixture'
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }))
@@ -40,13 +42,15 @@ function setWidth(width: number) {
   }) as unknown as typeof window.matchMedia
 }
 
-function renderBoard() {
+function renderBoard(path = '/g/capstone') {
   render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter initialEntries={['/g/capstone']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/g/:groupId" element={<BoardPage />} />
+          <Route path="/g/:groupId/t/:number" element={<BoardPage />} />
         </Routes>
+        <TaskRefs text="See #2 and #99" groupId="capstone" />
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -388,5 +392,69 @@ describe('task progress roster', () => {
     await userEvent.click(within(roster).getByRole('button', { name: /^cara/ }))
     const cara = screen.getByRole('region', { name: "cara's tasks" })
     expect(within(cara).getAllByRole('button')[0]).toHaveAttribute('aria-expanded', 'true')
+  })
+})
+
+describe('task deep links', () => {
+  it('opens the task named in the URL, in its own column', async () => {
+    setWidth(1440)
+    renderBoard('/g/capstone/t/2')
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    expect(within(cara).getAllByRole('button')[0]).toHaveAttribute('aria-expanded', 'true')
+    expect(within(cara).getByRole('button', { name: /Survey ten students/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(within(cara).getByRole('group', { name: 'Task #2 details' })).toBeVisible()
+  })
+
+  it('opens a task when a #2 reference is followed', async () => {
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    expect(within(cara).getByRole('button', { name: /Survey ten students/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await userEvent.click(screen.getByRole('link', { name: '#2' }))
+    expect(within(cara).getByRole('button', { name: /Survey ten students/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  it('says so when the task is not on the board', async () => {
+    setWidth(1440)
+    renderBoard('/g/capstone/t/99')
+    expect(await screen.findByRole('status')).toHaveTextContent('Task #99 is not on this board')
+  })
+
+  it('opens a deep link on a phone, on the Board tab', async () => {
+    setWidth(390)
+    renderBoard('/g/capstone/t/2')
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    expect(within(cara).getByRole('group', { name: 'Task #2 details' })).toBeVisible()
+  })
+})
+
+describe('task references', () => {
+  it('splits #12 out of text and leaves look-alikes alone', () => {
+    expect(splitTaskRefs('Kim took over #13 and #16')).toEqual([
+      'Kim took over ',
+      { number: 13 },
+      ' and ',
+      { number: 16 },
+    ])
+    expect(splitTaskRefs('#4 first')).toEqual([{ number: 4 }, ' first'])
+    expect(splitTaskRefs('colour #fff, issue#5, page.html#7')).toEqual([
+      'colour #fff, issue#5, page.html#7',
+    ])
+  })
+
+  it('links each reference to the task URL', async () => {
+    setWidth(1440)
+    renderBoard()
+    await screen.findByRole('region', { name: 'Task Progress' })
+    expect(screen.getByRole('link', { name: '#99' })).toHaveAttribute('href', '/g/capstone/t/99')
   })
 })

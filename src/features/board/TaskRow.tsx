@@ -47,7 +47,7 @@ export function TaskRow({
   const shown = shownStatus(task)
   const panelId = useId()
   return (
-    <li>
+    <li data-task={task.id}>
       <button
         type="button"
         aria-expanded={open}

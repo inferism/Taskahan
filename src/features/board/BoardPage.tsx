@@ -15,7 +15,7 @@ import { TopBar, type Panel } from './TopBar'
 type PhoneTab = 'board' | 'progress' | 'chat' | 'logs'
 
 export function BoardPage() {
-  const { groupId = '' } = useParams()
+  const { groupId = '', number } = useParams()
   const board = useBoard(groupId)
 
   if (board.isPending) return <BoardLoading />
@@ -27,10 +27,10 @@ export function BoardPage() {
       />
     )
   }
-  return <BoardShell key={groupId} board={board.data} />
+  return <BoardShell key={groupId} board={board.data} linkedNumber={number} />
 }
 
-function BoardShell({ board }: { board: Board }) {
+function BoardShell({ board, linkedNumber }: { board: Board; linkedNumber?: string }) {
   const layout = useLayout()
   const members = useMemo(() => columnMembers(board), [board])
   const byMember = useMemo(() => tasksByMember(board), [board])
@@ -51,6 +51,21 @@ function BoardShell({ board }: { board: Board }) {
   const [tab, setTab] = useState<PhoneTab>('board')
   const [page, setPage] = useState(0)
 
+  // Deep link `/g/:groupId/t/:number`: open that task once per link, whenever the link changes.
+  const linked = linkedNumber
+    ? board.tasks.find((t) => t.number === Number(linkedNumber))
+    : undefined
+  const [handledLink, setHandledLink] = useState<string>()
+  if (linkedNumber !== handledLink) {
+    setHandledLink(linkedNumber)
+    if (linked) {
+      setExpanded(linked.assignee_id)
+      setOpenTasks((cur) => ({ ...cur, [linked.assignee_id]: linked.id }))
+      setTab('board')
+    }
+  }
+  const missingLink = linkedNumber && !linked ? linkedNumber : undefined
+
   const columnRefs = useRef(new Map<string, HTMLElement>())
   const pagerRef = useRef<HTMLDivElement>(null)
 
@@ -67,6 +82,25 @@ function BoardShell({ board }: { board: Board }) {
     pager.scrollTo({ left: index * pager.clientWidth, behavior: smooth ? 'smooth' : 'auto' })
     setPage(index)
   }, [])
+
+  const linkedId = linked?.id
+  const linkedAssignee = linked?.assignee_id
+  useEffect(() => {
+    if (!linkedId || !linkedAssignee) return
+    const frame = requestAnimationFrame(() => {
+      if (layout === 'phone')
+        goToPage(
+          members.findIndex((m) => m.id === linkedAssignee),
+          false,
+        )
+      document
+        .querySelector(`[data-task="${linkedId}"]`)
+        ?.scrollIntoView?.({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+    // Only a new link scrolls; later layout or member changes must not yank the board around.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedId, linkedNumber])
 
   /** Roster row: show that member's column, expanded. */
   const showMember = useCallback(
@@ -135,6 +169,14 @@ function BoardShell({ board }: { board: Board }) {
         onPanel={setPanel}
         onAddTask={leader ? () => setEditor('new') : undefined}
       />
+      {missingLink && (
+        <p role="status" className="shrink-0 border-b border-line bg-sunken px-4 py-2 text-body">
+          Task #{missingLink} is not on this board. It may have been deleted.{' '}
+          <Link to={`/g/${board.group.id}`} className="font-semibold text-link underline">
+            Dismiss
+          </Link>
+        </p>
+      )}
 
       {layout === 'desktop' && (
         <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)_336px]">
