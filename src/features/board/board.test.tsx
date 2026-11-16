@@ -23,6 +23,11 @@ vi.mock('@/lib/supabase', () => ({
     },
     storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: '' } }) }) },
     auth: { signOut: vi.fn() },
+    channel: () => {
+      const ch = { on: () => ch, subscribe: () => ch }
+      return ch
+    },
+    removeChannel: vi.fn(async () => 'ok'),
   },
 }))
 vi.mock('@/app/auth', () => ({ useAuth: () => ({ session: { user: { id: 'u-ana' } } }) }))

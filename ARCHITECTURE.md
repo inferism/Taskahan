@@ -199,7 +199,7 @@ One private channel per open group, `group:{group_id}`, carrying three things:
 Rules:
 - Soft deletes mean every change arrives as an INSERT or UPDATE, never a DELETE, so filters and row level security always apply.
 - The client applies its own writes optimistically (status change, send message) and reconciles when the function returns.
-- After any reconnect the client refetches the snapshot. Events are a fast path, not the source of truth.
+- After any reconnect the client refetches the snapshot. Events are a fast path, not the source of truth. The refetch waits for the server's "subscribed to PostgreSQL" system message, not the channel's SUBSCRIBED status: after a rejoin the two are seconds apart, and a write in between would otherwise be missed.
 - If the client receives its own membership flipping to `former`, it leaves the channel and returns Home with a notice.
 - Logs are not subscribed. The leader's Logs view refetches when opened and on a manual refresh.
 

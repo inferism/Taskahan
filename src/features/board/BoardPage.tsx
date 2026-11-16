@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router'
 import { Roster } from '@/features/progress/Roster'
 import { errorKey } from '@/features/home/api'
 import { useLayout } from '@/lib/useLayout'
+import { useGroupChannel } from '@/realtime/groupChannel'
 import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
@@ -54,6 +55,7 @@ function BoardShell({
   retrying: boolean
   onRetry: () => void
 }) {
+  useGroupChannel(board.group.id)
   const layout = useLayout()
   const members = useMemo(() => columnMembers(board), [board])
   const byMember = useMemo(() => tasksByMember(board), [board])
