@@ -19,3 +19,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.1.0
+      # Starts only Postgres, applies every migration and the seed.
+      - run: supabase db start
+      - run: supabase test db
