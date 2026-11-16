@@ -1,4 +1,4 @@
-const USERNAME_RE = /^[a-z0-9_]{3,20}$/
+const USERNAME_RE = /^[A-Za-z0-9_]{3,20}$/
 
 /** The synthetic email Supabase Auth sees. Never shown to the user. */
 export function usernameToEmail(username: string): string {
@@ -7,8 +7,7 @@ export function usernameToEmail(username: string): string {
 }
 
 export function usernameError(raw: string): string | undefined {
-  const name = raw.trim().toLowerCase()
-  if (!USERNAME_RE.test(name)) return 'Use 3 to 20 characters: a to z, 0 to 9 and _'
+  if (!USERNAME_RE.test(raw.trim())) return 'Use 3 to 20 characters: letters, digits and _'
 }
 
 export function passwordError(password: string, username: string): string | undefined {

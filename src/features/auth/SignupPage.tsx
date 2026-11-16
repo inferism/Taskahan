@@ -1,10 +1,31 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
+import { isAuthWeakPasswordError, type AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { Button, Input } from '@/ui'
 import { AuthLayout } from './AuthLayout'
 import { passwordError, passwordStrength, usernameError, usernameToEmail } from './credentials'
 import { Turnstile } from './Turnstile'
+
+function signupErrorMessage(error: AuthError): string {
+  if (isAuthWeakPasswordError(error)) {
+    if (error.reasons.includes('pwned'))
+      return 'That password has appeared in a data leak. Choose a different one.'
+    if (error.reasons.includes('characters'))
+      return 'Password too simple. Mix upper and lower case letters, digits and symbols.'
+    return 'Password too weak. Use a longer one.'
+  }
+  if (error.code === 'user_already_exists' || error.code === 'email_exists')
+    return 'That username is taken. Try another.'
+  if (error.code === 'captcha_failed' || /captcha/i.test(error.message))
+    return 'The bot check failed. Try again.'
+  if (error.status === 429 || error.code?.startsWith('over_'))
+    return 'Too many sign ups right now. Wait a few minutes and try again.'
+  if (/registered|already|database error/i.test(error.message))
+    return 'That username is taken. Try another.'
+  console.error('Sign up failed', error)
+  return `Could not create the account: ${error.message}`
+}
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -33,17 +54,11 @@ export function SignupPage() {
     const { error } = await supabase.auth.signUp({
       email: usernameToEmail(username),
       password,
-      options: token ? { captchaToken: token } : undefined,
+      options: { data: { username: username.trim() }, ...(token ? { captchaToken: token } : {}) },
     })
     setBusy(false)
     if (error) {
-      setFormError(
-        /registered|already|database error/i.test(error.message)
-          ? 'That username is taken. Try another.'
-          : /captcha/i.test(error.message)
-            ? 'The bot check failed. Try again.'
-            : 'Could not create the account. Try again.',
-      )
+      setFormError(signupErrorMessage(error))
       // Tokens are single use.
       setToken(null)
       setWidgetKey((k) => k + 1)
@@ -58,11 +73,11 @@ export function SignupPage() {
         <Input
           label="Username"
           value={username}
-          onChange={(e) => setUsername(e.target.value.toLowerCase())}
+          onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          helper="3 to 20 characters: a to z, 0 to 9 and _. You cannot change it later."
+          helper="3 to 20 characters: letters, digits and _. You cannot change it later."
           error={uErr}
           required
         />

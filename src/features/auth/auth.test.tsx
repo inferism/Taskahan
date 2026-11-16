@@ -21,6 +21,7 @@ describe('credentials', () => {
   it('validates username and password', () => {
     expect(usernameError('ab')).toBeDefined()
     expect(usernameError('kim_1')).toBeUndefined()
+    expect(usernameError('Kim_1')).toBeUndefined()
     expect(passwordError('short', 'kim')).toBeDefined()
     expect(passwordError('samename1', 'samename1')).toBeDefined()
     expect(passwordError('longenough1', 'kim')).toBeUndefined()
