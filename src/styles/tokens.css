@@ -17,6 +17,7 @@
   --link: #0c5b49;
   --bar: #0c5b49;
   --focus: #13211c;
+  --tab-line: #0c5b49;
   --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.18);
 
   --jersey-royal: #2356d8;
@@ -43,5 +44,6 @@
   --link: #ffc42e;
   --bar: #08463a;
   --focus: #ffc42e;
+  --tab-line: #ffc42e;
   --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.5);
 }
