@@ -8,6 +8,7 @@ import { Avatar, Button, cn } from '@/ui'
 import { avatarUrl, useBoard, useSetTaskStatus, type Board, type Task } from './api'
 import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
+import { TaskDialog } from './TaskDialog'
 import { amLeader, canSetStatus, columnMembers, myMember, tasksByMember } from './selectors'
 import { TopBar, type Panel } from './TopBar'
 
@@ -41,6 +42,9 @@ function BoardShell({ board }: { board: Board }) {
   // One open task per column, by member id.
   const [openTasks, setOpenTasks] = useState<Record<string, string | undefined>>({})
   const setStatus = useSetTaskStatus(board.group.id)
+  // `null` is closed; `'new'` adds; a task edits.
+  const [editor, setEditor] = useState<Task | 'new' | null>(null)
+  const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members])
   const [chosenPanel, setPanel] = useState<Panel | null>(null)
   // Panels only exist on tablets.
   const panel = layout === 'tablet' ? chosenPanel : null
@@ -115,6 +119,7 @@ function BoardShell({ board }: { board: Board }) {
       onToggleTask={toggleTask}
       canSetStatus={(t) => canSetStatus(board, t)}
       onStatus={(t, status) => setStatus.mutate({ taskId: t.id, status })}
+      onEdit={leader ? setEditor : undefined}
       failedTaskId={setStatus.isError ? setStatus.variables.taskId : undefined}
       onRetryStatus={() => setStatus.variables && setStatus.mutate(setStatus.variables)}
     />
@@ -122,7 +127,14 @@ function BoardShell({ board }: { board: Board }) {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-ground">
-      <TopBar board={board} me={me} layout={layout} panel={panel} onPanel={setPanel} />
+      <TopBar
+        board={board}
+        me={me}
+        layout={layout}
+        panel={panel}
+        onPanel={setPanel}
+        onAddTask={leader ? () => setEditor('new') : undefined}
+      />
 
       {layout === 'desktop' && (
         <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)_336px]">
@@ -190,9 +202,24 @@ function BoardShell({ board }: { board: Board }) {
               </PhonePane>
             )}
           </main>
+          {leader && tab === 'board' && (
+            <div className="shrink-0 border-t border-line bg-surface p-3">
+              <Button variant="primary" className="w-full" onClick={() => setEditor('new')}>
+                Add task
+              </Button>
+            </div>
+          )}
           <BottomTabs tab={tab} onTab={setTab} leader={leader} />
         </>
       )}
+      <TaskDialog
+        open={editor !== null}
+        onOpenChange={(open) => !open && setEditor(null)}
+        groupId={board.group.id}
+        members={activeMembers}
+        me={board.me}
+        task={editor && editor !== 'new' ? editor : undefined}
+      />
     </div>
   )
 }

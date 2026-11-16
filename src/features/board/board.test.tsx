@@ -244,3 +244,104 @@ describe('task details and status', () => {
     expect(await within(cara).findByRole('button', { name: 'Done · 1' })).toBeInTheDocument()
   })
 })
+
+describe('add and edit task', () => {
+  beforeAll(() => {
+    // Radix Select leans on pointer capture and scrollIntoView, which jsdom lacks.
+    Element.prototype.hasPointerCapture = () => false
+    Element.prototype.releasePointerCapture = () => {}
+    Element.prototype.scrollIntoView = () => {}
+  })
+
+  const serve = (board: typeof seedBoard, onWrite: (name: string) => unknown) =>
+    rpc.mockImplementation((name: string) =>
+      Promise.resolve(
+        name === 'get_group_snapshot'
+          ? { data: board, error: null }
+          : (onWrite(name) ?? { data: null, error: null }),
+      ),
+    )
+
+  it('lets the leader add a task to a member', async () => {
+    const created = {
+      ...seedBoard.tasks[0],
+      id: 't8',
+      number: 8,
+      title: 'Print posters',
+      assignee_id: 'cara',
+      status: 'todo',
+      deleted_at: null,
+    }
+    serve(seedBoard, (name) => (name === 'create_task' ? { data: created, error: null } : null))
+    setWidth(1440)
+    renderBoard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add task' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add a task' })
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'Print posters')
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Assignee' }))
+    await userEvent.click(await screen.findByRole('option', { name: '#3 cara' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add task' }))
+    expect(rpc).toHaveBeenCalledWith('create_task', {
+      p_group_id: 'capstone',
+      p_title: 'Print posters',
+      p_details: '',
+      p_assignee_id: 'cara',
+      p_deadline: null,
+    })
+    const cara = screen.getByRole('region', { name: "cara's tasks" })
+    expect(await within(cara).findByText('Print posters')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('moves a reassigned task to the new column', async () => {
+    const moved = { ...seedBoard.tasks[1], assignee_id: 'dev', deleted_at: null }
+    serve(seedBoard, (name) => (name === 'update_task' ? { data: moved, error: null } : null))
+    setWidth(1440)
+    renderBoard()
+    const cara = await screen.findByRole('region', { name: "cara's tasks" })
+    await userEvent.click(within(cara).getByRole('button', { name: /Survey ten students/ }))
+    await userEvent.click(within(cara).getByRole('button', { name: 'Edit' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit task #2' })
+    expect(within(dialog).getByLabelText('Title')).toHaveValue('Survey ten students')
+    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Assignee' }))
+    await userEvent.click(await screen.findByRole('option', { name: '#4 dev' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save task' }))
+    const dev = screen.getByRole('region', { name: "dev's tasks" })
+    expect(await within(dev).findByText('Survey ten students')).toBeInTheDocument()
+    expect(within(cara).queryByText('Survey ten students')).not.toBeInTheDocument()
+  })
+
+  it('shows a member neither Add task nor Edit', async () => {
+    serve(seedBoardAsBen, () => null)
+    setWidth(1440)
+    renderBoard()
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    expect(screen.queryByRole('button', { name: 'Add task' })).not.toBeInTheDocument()
+    await userEvent.click(within(ben).getByRole('button', { name: /Book the demo room/ }))
+    expect(within(ben).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the dialog open and explains when the server refuses', async () => {
+    serve(seedBoard, (name) =>
+      name === 'create_task' ? { data: null, error: { message: 'forbidden' } } : null,
+    )
+    setWidth(1440)
+    renderBoard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add task' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.type(within(dialog).getByLabelText('Title'), 'Something')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add task' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Only the leader')
+  })
+
+  it('asks for a title before sending anything', async () => {
+    serve(seedBoard, () => null)
+    setWidth(1440)
+    renderBoard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add task' }))
+    const dialog = await screen.findByRole('dialog')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add task' }))
+    expect(within(dialog).getByText('Give the task a title')).toBeInTheDocument()
+    expect(rpc).not.toHaveBeenCalledWith('create_task', expect.anything())
+  })
+})

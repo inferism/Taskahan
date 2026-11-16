@@ -17,6 +17,8 @@ export interface TopBarProps {
   /** Tablet only: which slide-over panel is open. */
   panel: Panel | null
   onPanel: (panel: Panel | null) => void
+  /** Leader only. On phones the button sits above the tab bar instead. */
+  onAddTask?: () => void
 }
 
 const barButton =
@@ -120,8 +122,8 @@ function AccountMenu({ me }: { me: Member | undefined }) {
   )
 }
 
-/** The 56px court-green bar. Online count arrives with presence (5.4), Add task with 4.5. */
-export function TopBar({ board, me, layout, panel, onPanel }: TopBarProps) {
+/** The 56px court-green bar. Online count arrives with presence (5.4). */
+export function TopBar({ board, me, layout, panel, onPanel, onAddTask }: TopBarProps) {
   const toggle = (p: Panel) => onPanel(panel === p ? null : p)
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 bg-bar px-4 text-white md:gap-3 md:px-6">
@@ -157,6 +159,15 @@ export function TopBar({ board, me, layout, panel, onPanel }: TopBarProps) {
               Chat
             </button>
           </>
+        )}
+        {onAddTask && layout !== 'phone' && (
+          <button
+            type="button"
+            className={cn(barButton, 'bg-yellow text-on-yellow hover:bg-yellow-hover')}
+            onClick={onAddTask}
+          >
+            Add task
+          </button>
         )}
         <span className="ml-1">
           <AccountMenu me={me} />
