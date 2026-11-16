@@ -1,7 +1,9 @@
 import { Navigate, type RouteObject } from 'react-router'
 import { Gallery } from '@/ui/Gallery'
 import { AuthGuard, GuestOnly } from './AuthGuard'
-import { BoardPage, HomePage, LoginPage, SettingsPage, SignupPage } from './pages'
+import { LoginPage } from '@/features/auth/LoginPage'
+import { SignupPage } from '@/features/auth/SignupPage'
+import { BoardPage, HomePage, SettingsPage } from './pages'
 
 export const routes: RouteObject[] = [
   {
