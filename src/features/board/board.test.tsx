@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -42,9 +42,9 @@ function setWidth(width: number) {
   }) as unknown as typeof window.matchMedia
 }
 
-function renderBoard(path = '/g/capstone') {
+function renderBoard(path = '/g/capstone', client = createQueryClient()) {
   render(
-    <QueryClientProvider client={createQueryClient()}>
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/g/:groupId" element={<BoardPage />} />
@@ -456,5 +456,59 @@ describe('task references', () => {
     renderBoard()
     await screen.findByRole('region', { name: 'Task Progress' })
     expect(screen.getByRole('link', { name: '#99' })).toHaveAttribute('href', '/g/capstone/t/99')
+  })
+})
+
+describe('loading, empty and error states', () => {
+  it('shows the board layout in track colour while loading, with no spinner', async () => {
+    rpc.mockReturnValue(new Promise(() => {}))
+    setWidth(1440)
+    renderBoard()
+    const loading = await screen.findByLabelText('Loading board')
+    expect(loading).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('tells the leader what to do in an empty column', async () => {
+    setWidth(1440)
+    renderBoard()
+    const ana = await screen.findByRole('region', { name: "ana's tasks" })
+    expect(
+      within(ana).getByText(/No tasks yet\. Use Add task to give yourself one\./),
+    ).toBeInTheDocument()
+  })
+
+  it('tells a member with nothing assigned who will assign', async () => {
+    rpc.mockResolvedValue({ data: { ...seedBoardAsBen, tasks: [] }, error: null })
+    setWidth(1440)
+    renderBoard()
+    const ben = await screen.findByRole('region', { name: "ben's tasks" })
+    expect(within(ben).getByText(/Your leader will assign tasks here/)).toBeInTheDocument()
+  })
+
+  it('shows an error with Retry when the board will not load, then recovers', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'network down' } })
+    setWidth(1440)
+    renderBoard()
+    const alert = await screen.findByRole('alert', undefined, { timeout: 4000 })
+    expect(alert).toHaveTextContent('Could not load the board')
+    rpc.mockResolvedValue({ data: seedBoard, error: null })
+    await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('region', { name: "ana's tasks" })).toBeInTheDocument()
+  })
+
+  it('keeps the last board on screen when a refresh fails, with Retry', async () => {
+    const client = createQueryClient()
+    setWidth(1440)
+    renderBoard('/g/capstone', client)
+    await screen.findByRole('region', { name: "ana's tasks" })
+    rpc.mockResolvedValue({ data: null, error: { message: 'network down' } })
+    void client.invalidateQueries({ queryKey: ['board', 'capstone'] })
+    const alert = await screen.findByRole('alert', undefined, { timeout: 4000 })
+    expect(alert).toHaveTextContent('Could not refresh the board')
+    expect(screen.getByRole('region', { name: "ana's tasks" })).toBeInTheDocument()
+    rpc.mockResolvedValue({ data: seedBoard, error: null })
+    await userEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
   })
 })

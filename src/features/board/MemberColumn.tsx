@@ -9,6 +9,8 @@ export interface MemberColumnProps {
   member: Member
   tasks: Task[]
   isMe: boolean
+  /** The viewer leads the group: an empty column points at Add task. */
+  leader?: boolean
   /** Desktop and tablet only; on phones every column is full width and always expanded. */
   expanded: boolean
   fullWidth?: boolean
@@ -32,6 +34,15 @@ function statusLine(member: Member, isMe: boolean): string {
   return isMe ? `${role} · You` : role
 }
 
+/** Empty columns say what to do next, in one sentence. */
+function emptyText(member: Member, isMe: boolean, leader?: boolean): string {
+  if (member.status === 'former') return 'No tasks were left in this column.'
+  if (leader)
+    return `No tasks yet. Use Add task to give ${isMe ? 'yourself' : member.display_name} one.`
+  if (isMe) return 'Nothing for you yet. Your leader will assign tasks here.'
+  return 'No tasks yet.'
+}
+
 /**
  * One member's column: scoreboard header, progress bar, tasks under deadline headings.
  * The frame and widths belong to the board shell (4.2). Collapsed columns expand on any click;
@@ -42,6 +53,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     member,
     tasks,
     isMe,
+    leader,
     expanded,
     fullWidth,
     now,
@@ -118,7 +130,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {sections.length === 0 ? (
-          <p className="pt-3 text-body text-muted">No tasks yet.</p>
+          <p className="pt-3 text-body text-muted">{emptyText(member, isMe, leader)}</p>
         ) : (
           sections.map((s) => {
             const folded = s.group === 'done' && !doneOpen

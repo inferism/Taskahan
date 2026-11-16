@@ -19,18 +19,41 @@ export function BoardPage() {
   const board = useBoard(groupId)
 
   if (board.isPending) return <BoardLoading />
-  if (board.isError) {
+  // A failed refresh keeps the last board on screen; only a board never loaded is replaced.
+  if (board.isError && !board.data) {
     return (
       <BoardProblem
         forbidden={errorKey(board.error) === 'forbidden'}
+        retrying={board.isFetching}
         onRetry={() => void board.refetch()}
       />
     )
   }
-  return <BoardShell key={groupId} board={board.data} linkedNumber={number} />
+  return (
+    <BoardShell
+      key={groupId}
+      board={board.data!}
+      linkedNumber={number}
+      refreshFailed={board.isError}
+      retrying={board.isFetching}
+      onRetry={() => void board.refetch()}
+    />
+  )
 }
 
-function BoardShell({ board, linkedNumber }: { board: Board; linkedNumber?: string }) {
+function BoardShell({
+  board,
+  linkedNumber,
+  refreshFailed,
+  retrying,
+  onRetry,
+}: {
+  board: Board
+  linkedNumber?: string
+  refreshFailed: boolean
+  retrying: boolean
+  onRetry: () => void
+}) {
   const layout = useLayout()
   const members = useMemo(() => columnMembers(board), [board])
   const byMember = useMemo(() => tasksByMember(board), [board])
@@ -145,6 +168,7 @@ function BoardShell({ board, linkedNumber }: { board: Board; linkedNumber?: stri
       member={m}
       tasks={byMember.get(m.id) ?? []}
       isMe={m.id === board.me}
+      leader={leader}
       expanded={layout === 'phone' || expanded === m.id}
       fullWidth={layout === 'phone'}
       now={now}
@@ -169,6 +193,17 @@ function BoardShell({ board, linkedNumber }: { board: Board; linkedNumber?: stri
         onPanel={setPanel}
         onAddTask={leader ? () => setEditor('new') : undefined}
       />
+      {refreshFailed && (
+        <p
+          role="alert"
+          className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-sunken px-4 py-1 text-body text-blocked"
+        >
+          Could not refresh the board. You are seeing the last version that loaded.
+          <Button variant="quiet" busy={retrying} busyLabel="Retrying…" onClick={onRetry}>
+            Retry
+          </Button>
+        </p>
+      )}
       {missingLink && (
         <p role="status" className="shrink-0 border-b border-line bg-sunken px-4 py-2 text-body">
           Task #{missingLink} is not on this board. It may have been deleted.{' '}
@@ -409,28 +444,62 @@ function BottomTabs({
 
 /** Loading shows the real layout with track-coloured bars; no spinners on the board. */
 function BoardLoading() {
+  const layout = useLayout()
+  const bar = (cls: string) => <div className={cn('rounded bg-track', cls)} />
   return (
     <div aria-busy="true" aria-label="Loading board" className="flex h-dvh flex-col bg-ground">
       <div className="h-14 shrink-0 bg-bar" />
-      <div className="flex min-h-0 flex-1 gap-3 overflow-hidden p-4">
-        {[408, 248, 248].map((w, i) => (
-          <div
-            key={i}
-            className="flex shrink-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 max-md:w-full!"
-            style={{ width: w }}
-          >
-            <div className="h-[52px] rounded-md bg-track" />
-            <div className="h-1.5 rounded-full bg-track" />
-            <div className="h-4 w-2/3 rounded bg-track" />
-            <div className="h-4 w-1/2 rounded bg-track" />
+      <div className="flex min-h-0 flex-1">
+        {layout === 'desktop' && (
+          <div className="flex w-[288px] shrink-0 flex-col gap-4 border-r border-line bg-surface p-4">
+            {bar('h-5 w-1/2')}
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="size-9 shrink-0 rounded-md bg-track" />
+                <div className="flex flex-1 flex-col gap-2">
+                  {bar('h-1.5 rounded-full')}
+                  {bar('h-3 w-2/3')}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+        <div className="flex min-w-0 flex-1 gap-3 overflow-hidden p-4">
+          {[408, 248, 248].map((w, i) => (
+            <div
+              key={i}
+              className="flex shrink-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 max-md:w-full!"
+              style={{ width: w }}
+            >
+              <div className="h-[52px] rounded-md bg-track" />
+              <div className="h-1.5 rounded-full bg-track" />
+              <div className="h-4 w-2/3 rounded bg-track" />
+              <div className="h-4 w-1/2 rounded bg-track" />
+            </div>
+          ))}
+        </div>
+        {layout === 'desktop' && (
+          <div className="flex w-[336px] shrink-0 flex-col gap-3 border-l border-line bg-surface p-4">
+            {bar('h-5 w-1/3')}
+            {bar('h-4 w-3/4')}
+            {bar('h-4 w-1/2')}
+            {bar('h-4 w-2/3')}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function BoardProblem({ forbidden, onRetry }: { forbidden: boolean; onRetry: () => void }) {
+function BoardProblem({
+  forbidden,
+  retrying,
+  onRetry,
+}: {
+  forbidden: boolean
+  retrying: boolean
+  onRetry: () => void
+}) {
   return (
     <main className="mx-auto flex max-w-3xl flex-col items-start gap-3 p-6" role="alert">
       <h1 className="font-display text-name font-bold uppercase tracking-[0.02em]">
@@ -443,7 +512,7 @@ function BoardProblem({ forbidden, onRetry }: { forbidden: boolean; onRetry: () 
       </p>
       <div className="flex gap-3">
         {!forbidden && (
-          <Button variant="primary" onClick={onRetry}>
+          <Button variant="primary" busy={retrying} busyLabel="Retrying…" onClick={onRetry}>
             Retry
           </Button>
         )}
