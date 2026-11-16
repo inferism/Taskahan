@@ -17,7 +17,7 @@ set search_path = public, extensions;
 delete from public.groups;
 delete from auth.users;
 
-select plan(429);
+select plan(435);
 
 -- ---------------------------------------------------------------------------
 -- Harness
@@ -297,6 +297,10 @@ insert into matrix (what, sql, spec) values
    '42501|42501|42501|42501|42501|42501'),
   ('private.rate_limit_take is not callable',
    $$ select private.rate_limit_take('message', 30, interval '1 minute') $$,
+   '42501|42501|42501|42501|42501|42501'),
+  -- Only the set-avatar Edge Function, as service role, may call it.
+  ('swap_avatar_path is not callable',
+   $$ select public.swap_avatar_path({mL}, 'x/y.webp') $$,
    '42501|42501|42501|42501|42501|42501');
 
 -- One test per cell.
@@ -349,8 +353,8 @@ select is(
      from pg_proc p where p.pronamespace = 'public'::regnamespace),
   array['create_group', 'create_task', 'delete_task', 'get_group_snapshot', 'join_group',
         'leave_group', 'open_question', 'remove_member', 'reply_to_question', 'send_message',
-        'set_question_resolved', 'set_task_status', 'take_over_tasks', 'touch_activity',
-        'transfer_leadership', 'update_group', 'update_task'],
+        'set_question_resolved', 'set_task_status', 'swap_avatar_path', 'take_over_tasks',
+        'touch_activity', 'transfer_leadership', 'update_group', 'update_task'],
   'the matrix covers every function in public');
 
 select is(
@@ -373,7 +377,8 @@ select is(
 select is(
   (select count(*)::int from information_schema.routine_privileges
     where routine_schema = 'private' and grantee in ('PUBLIC', 'anon', 'authenticated')
-      and routine_name not in ('is_active_member', 'is_leader', 'group_topic_id')),
+      and routine_name not in ('is_active_member', 'is_leader', 'group_topic_id',
+                               'is_own_avatar_path')),
   0, 'private helpers are executable by nobody but the policy checks');
 
 select * from finish();
