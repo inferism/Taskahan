@@ -4,10 +4,11 @@ import { AuthGuard, GuestOnly } from './AuthGuard'
 import { RouteError } from './ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
-import { HomePage } from '@/features/home/HomePage'
+import { StartPage } from './StartPage'
 import { BoardPage } from '@/features/board/BoardPage'
 
 const appRoutes: RouteObject[] = [
+  { path: '/', element: <StartPage /> },
   {
     element: <GuestOnly />,
     children: [
@@ -18,7 +19,6 @@ const appRoutes: RouteObject[] = [
   {
     element: <AuthGuard />,
     children: [
-      { path: '/', element: <HomePage /> },
       { path: '/g/:groupId', element: <BoardPage /> },
       { path: '/g/:groupId/t/:number', element: <BoardPage /> },
       // Settings carries the avatar cropper, which the board never needs on first paint.

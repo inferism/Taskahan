@@ -12,7 +12,7 @@ const jerseys = [
 ]
 
 export interface AvatarProps {
-  /** Join-order seat number. Picks the colour and is shown as two digits. */
+  /** Join-order seat number. Picks the color and remains in the accessible label. */
   seat: number
   name: string
   size?: 28 | 36 | 52
@@ -23,7 +23,7 @@ export interface AvatarProps {
 
 const sizeClass = { 28: 'size-7 text-label', 36: 'size-9 text-title', 52: 'size-[52px] text-name' }
 
-/** The jersey tile. */
+/** Stable seat colors identify people even without a profile photo. */
 export function Avatar({ seat, name, size = 36, photoUrl, online, former }: AvatarProps) {
   const idx = (Math.max(seat, 1) - 1) % jerseys.length
   const num = String(seat).padStart(2, '0')
@@ -34,26 +34,17 @@ export function Avatar({ seat, name, size = 36, photoUrl, online, former }: Avat
       role="img"
       aria-label={label}
       className={cn(
-        'relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-md font-display font-bold',
+        'relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-full font-medium',
         sizeClass[size],
-        former ? 'border-2 border-dashed border-muted text-muted' : cn(jerseys[idx], 'text-white'),
+        former
+          ? 'border border-dashed border-muted text-muted'
+          : cn(jerseys[idx], 'text-(--avatar-ink)'),
       )}
     >
       {photo ? (
-        <>
-          <img src={photoUrl} alt="" className="size-full rounded-md object-cover" />
-          <span
-            aria-hidden
-            className={cn(
-              'absolute inset-x-0 bottom-0 rounded-b-md text-center text-label leading-4 text-white',
-              jerseys[idx],
-            )}
-          >
-            {num}
-          </span>
-        </>
+        <img src={photoUrl} alt="" className="size-full rounded-full object-cover" />
       ) : (
-        <span aria-hidden>{num}</span>
+        <span aria-hidden>{name.slice(0, 2).toUpperCase()}</span>
       )}
       {online && !former && (
         <span

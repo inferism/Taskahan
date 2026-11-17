@@ -1,9 +1,7 @@
 @import 'tailwindcss';
-@import '@fontsource/barlow/latin-400.css';
-@import '@fontsource/barlow/latin-500.css';
-@import '@fontsource/barlow/latin-600.css';
-@import '@fontsource/barlow/latin-700.css';
-@import '@fontsource/barlow-condensed/latin-700.css';
+@import '@fontsource/geist/latin-400.css';
+@import '@fontsource/geist/latin-500.css';
+@import '@fontsource/geist/latin-600.css';
 @import './tokens.css';
 
 @theme inline {
@@ -21,6 +19,7 @@
   --color-muted: var(--muted);
   --color-done: var(--done);
   --color-done-text: var(--done-text);
+  --color-in-progress: var(--in-progress);
   --color-blocked: var(--blocked);
   --color-on-status: var(--on-status);
   --color-link: var(--link);
@@ -35,8 +34,8 @@
   --color-jersey-steel: var(--jersey-steel);
   --color-jersey-brown: var(--jersey-brown);
 
-  --font-sans: 'Barlow', system-ui, sans-serif;
-  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-display: 'Geist', system-ui, sans-serif;
 
   /* The five sizes (plus the 13px deadline heading) */
   --text-label: 0.75rem;
@@ -45,10 +44,10 @@
   --text-body--line-height: 1.45;
   --text-title: 1rem;
   --text-title--line-height: 1.35;
-  --text-name: 1.375rem;
-  --text-name--line-height: 1;
-  --text-tally: 2.75rem;
-  --text-tally--line-height: 1;
+  --text-name: 1.5rem;
+  --text-name--line-height: 1.25;
+  --text-tally: 1.125rem;
+  --text-tally--line-height: 1.35;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -74,8 +73,8 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: var(--scoreboard-yellow);
-    color: #13211c;
+    background: var(--ink);
+    color: var(--surface);
   }
   input,
   textarea {
@@ -90,7 +89,46 @@
   }
 }
 
-/* A row someone else just changed: a yellow wash at 30% that fades over 600ms. */
+@layer components {
+  .workspace-nav {
+    width: 208px;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 28px;
+    padding: 28px 16px;
+  }
+  .workspace-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    border-radius: 6px;
+    padding: 8px 12px;
+    text-align: left;
+    color: var(--muted);
+  }
+  .workspace-link:hover,
+  .workspace-link[aria-current='page'] {
+    background: var(--surface-sunken);
+    color: var(--ink);
+  }
+  .workspace-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -1px;
+  }
+  .workspace-brand::before {
+    content: 'tt';
+    letter-spacing: -7px;
+    padding-right: 8px;
+    font-size: 30px;
+  }
+}
+
+/* A brief neutral wash makes realtime changes visible without moving the row. */
 @keyframes wash {
   from {
     background-color: color-mix(in srgb, var(--scoreboard-yellow) 30%, transparent);

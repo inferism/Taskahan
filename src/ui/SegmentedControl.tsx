@@ -14,7 +14,7 @@ export interface SegmentedControlProps<T extends string> {
   disabled?: boolean
 }
 
-/** Single-choice segmented control. Selected segment is yellow with ink text. */
+/** Single-choice segmented control. Selected segment uses the primary action colors. */
 export function SegmentedControl<T extends string>({
   label,
   options,
@@ -30,15 +30,15 @@ export function SegmentedControl<T extends string>({
       disabled={disabled}
       // Radix emits '' when the active item is pressed again; keep the selection.
       onValueChange={(v) => v && onValueChange(v as T)}
-      className="inline-flex overflow-hidden rounded-md border border-ink bg-surface"
+      className="inline-flex overflow-hidden rounded-md border border-line bg-surface"
     >
       {options.map((o) => (
         <ToggleGroup.Item
           key={o.value}
           value={o.value}
           className={cn(
-            'h-11 px-3 text-body font-semibold text-ink transition-colors duration-[120ms] sm:h-10',
-            'not-first:border-l not-first:border-ink',
+            'h-11 flex-1 px-3 text-body font-medium text-ink transition-colors duration-[120ms] sm:h-10',
+            'not-first:border-l not-first:border-line',
             'hover:bg-sunken data-[state=on]:bg-yellow data-[state=on]:text-on-yellow data-[state=on]:hover:bg-yellow-hover',
             'disabled:opacity-45',
           )}

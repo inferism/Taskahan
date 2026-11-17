@@ -114,11 +114,13 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
           ? 'h-full w-full snap-start snap-always'
           : cn(
               'max-h-full rounded-lg border border-line transition-[width] duration-200',
-              expanded ? 'w-[408px]' : 'w-[248px] cursor-pointer hover:bg-sunken',
+              expanded
+                ? 'w-[340px] min-w-[320px] grow'
+                : 'w-[280px] min-w-[260px] grow cursor-pointer hover:bg-sunken',
             ),
       )}
     >
-      <header className={cn('flex flex-col gap-2 border-b border-line p-3', former && 'bg-sunken')}>
+      <header className={cn('flex flex-col gap-2 border-b border-line p-4', former && 'bg-sunken')}>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -130,22 +132,20 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
             <Avatar
               seat={member.seat}
               name={member.display_name}
-              size={52}
+              size={36}
               former={former}
               online={online}
               photoUrl={avatarUrl(member.avatar_path)}
             />
             <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate font-display text-name font-bold uppercase tracking-[0.02em]">
-                {name}
-              </span>
+              <span className="truncate text-body font-medium">{name}</span>
               <span className="text-label text-muted">{statusLine(member, isMe, online)}</span>
             </span>
-            <span className="font-display text-tally font-bold">
+            <span className="relative text-body font-medium">
               <span className="sr-only">{progressText(p)}</span>
               <span aria-hidden>
                 <Tally value={p.done} />
-                <span className="text-name text-muted">/{p.total}</span>
+                <span className="text-body text-muted">/{p.total}</span>
               </span>
             </span>
           </button>
@@ -153,7 +153,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
         </div>
         <div aria-hidden className="flex h-1.5 overflow-hidden rounded-full bg-track">
           <div className="bg-done" style={{ width: `${pct(p.done)}%` }} />
-          <div className="bg-yellow" style={{ width: `${pct(p.inProgress)}%` }} />
+          <div className="bg-in-progress" style={{ width: `${pct(p.inProgress)}%` }} />
         </div>
         <p className="flex items-center gap-1 text-label text-muted">
           {progressText(p)}
@@ -173,8 +173,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
         ) : (
           sections.map((s) => {
             const folded = s.group === 'done' && !doneOpen
-            const heading =
-              'font-display text-[0.8125rem] font-bold uppercase tracking-[0.1em] text-muted'
+            const heading = 'text-label font-medium text-muted'
             return (
               <div key={s.group} className="pt-4">
                 {s.group === 'done' ? (
@@ -220,7 +219,7 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
         )}
       </div>
       {former && onTakeOver && tasks.length > 0 && (
-        <div className="border-t border-line p-3">
+        <div className="border-t border-line p-4">
           <Button onClick={onTakeOver}>Take over tasks</Button>
         </div>
       )}

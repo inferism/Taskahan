@@ -16,6 +16,7 @@ import {
   type Profile,
 } from './api'
 import { AvatarCropper } from './AvatarCropper'
+import { WorkspaceNav } from '@/ui/WorkspaceNav'
 import { ACCEPT_ATTR, checkFile, pickMessages } from './image'
 
 const themeOptions: { value: ThemePreference; label: string }[] = [
@@ -28,10 +29,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section
       aria-label={title}
-      className="flex flex-col gap-3 border-b border-line py-5 last:border-b-0"
+      className="grid grid-cols-1 gap-5 border-b border-line py-6 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)]"
     >
       <h2 className="text-title font-semibold">{title}</h2>
-      {children}
+      <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-surface p-5">{children}</div>
     </section>
   )
 }
@@ -107,7 +108,7 @@ function PhotoSection({ profile }: { profile: Profile | undefined }) {
       </div>
       <p className="text-label text-muted">
         JPEG, PNG or WebP, up to 10 MB. Your photo is public to anyone who has its link, and the
-        people in your groups see it on your jersey.
+        people in your groups see it next to your name.
       </p>
       {problem && (
         <p role="alert" className="text-label text-blocked">
@@ -168,37 +169,40 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-2 p-6">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1 self-start text-body font-semibold text-link hover:underline"
-      >
-        <ArrowLeft size={20} strokeWidth={1.75} aria-hidden />
-        Your groups
-      </Link>
-      <h1 className="font-display text-name font-bold uppercase tracking-[0.02em]">Settings</h1>
-      {profile.isError && (
-        <div className="flex flex-col items-start gap-2" role="alert">
-          <p className="text-blocked">Could not load your profile.</p>
-          <Button onClick={() => void profile.refetch()}>Retry</Button>
-        </div>
-      )}
-      {/* Remount once the saved theme arrives so the control starts from it. */}
-      <PhotoSection profile={profile.data} />
-      <ThemeSection key={profile.data ? 'loaded' : 'loading'} profile={profile.data} />
-      <Section title="Account">
-        {profile.data && (
-          <p className="text-body text-muted">Logged in as {profile.data.username}</p>
-        )}
-        <Button
-          className="self-start"
-          busy={leaving}
-          busyLabel="Logging out…"
-          onClick={() => void logOut()}
+    <div className="flex min-h-dvh">
+      <WorkspaceNav />
+      <main className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-4 px-4 py-8 sm:px-8">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1 self-start text-body font-semibold text-link hover:underline"
         >
-          Log out
-        </Button>
-      </Section>
-    </main>
+          <ArrowLeft size={20} strokeWidth={1.75} aria-hidden />
+          Your groups
+        </Link>
+        <h1 className="text-name font-medium tracking-tight">Settings</h1>
+        {profile.isError && (
+          <div className="flex flex-col items-start gap-2" role="alert">
+            <p className="text-blocked">Could not load your profile.</p>
+            <Button onClick={() => void profile.refetch()}>Retry</Button>
+          </div>
+        )}
+        {/* Remount once the saved theme arrives so the control starts from it. */}
+        <PhotoSection profile={profile.data} />
+        <ThemeSection key={profile.data ? 'loaded' : 'loading'} profile={profile.data} />
+        <Section title="Account">
+          {profile.data && (
+            <p className="text-body text-muted">Logged in as {profile.data.username}</p>
+          )}
+          <Button
+            className="self-start"
+            busy={leaving}
+            busyLabel="Logging out…"
+            onClick={() => void logOut()}
+          >
+            Log out
+          </Button>
+        </Section>
+      </main>
+    </div>
   )
 }

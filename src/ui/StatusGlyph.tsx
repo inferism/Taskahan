@@ -51,7 +51,7 @@ export function StatusGlyph({ status, size = 20 }: { status: TaskStatus; size?: 
             fontSize="13"
             fontWeight="700"
             fill="var(--on-status)"
-            fontFamily="Barlow, system-ui, sans-serif"
+            fontFamily="Geist, system-ui, sans-serif"
           >
             ?
           </text>

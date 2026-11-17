@@ -26,7 +26,7 @@ export interface TopBarProps {
 }
 
 const barButton =
-  'inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-body font-semibold text-white hover:bg-white/15 focus-visible:outline-yellow'
+  'inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-body font-medium text-ink hover:bg-sunken'
 
 const menuContent =
   'z-50 min-w-48 rounded-lg border border-line bg-surface p-1 text-body text-ink shadow-overlay'
@@ -44,7 +44,7 @@ function GroupSwitcher({ board, layout }: { board: Board; layout: Layout }) {
       >
         <span className="truncate">{group.name}</span>
         {layout !== 'phone' && (
-          <span className="rounded-full bg-white/15 px-2 text-label font-medium whitespace-nowrap">
+          <span className="rounded-full bg-sunken px-2 text-label font-medium whitespace-nowrap">
             {purposeText(group.purpose, group.purpose_note)}
           </span>
         )}
@@ -90,9 +90,7 @@ function JoinCode({ code, compact }: { code: string; compact: boolean }) {
       className={barButton}
       aria-label={`Copy join code ${code}`}
     >
-      {!compact && (
-        <span className="font-display text-title font-bold tracking-[0.18em]">{code}</span>
-      )}
+      {!compact && <span className="text-label font-medium tracking-widest">{code}</span>}
       {copied ? (
         <Check size={20} strokeWidth={1.75} aria-hidden />
       ) : (
@@ -109,7 +107,7 @@ function AccountMenu({ me }: { me: Member | undefined }) {
         {me ? (
           <Avatar seat={me.seat} name={me.display_name} photoUrl={avatarUrl(me.avatar_path)} />
         ) : (
-          <span className="block size-9 rounded-md bg-white/15" />
+          <span className="block size-9 rounded-md bg-sunken" />
         )}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -126,7 +124,7 @@ function AccountMenu({ me }: { me: Member | undefined }) {
   )
 }
 
-/** The 56px court-green bar. */
+/** Shared group controls, with compact actions on phones. */
 export function TopBar({
   board,
   me,
@@ -139,12 +137,9 @@ export function TopBar({
 }: TopBarProps) {
   const toggle = (p: Panel) => onPanel(panel === p ? null : p)
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 bg-bar px-4 text-white md:gap-3 md:px-6">
-      {layout !== 'phone' && (
-        <Link
-          to="/"
-          className="font-display text-name font-bold uppercase tracking-[0.02em] focus-visible:outline-yellow"
-        >
+    <header className="flex h-14 shrink-0 items-center gap-1 border-b border-line bg-bar px-3 text-ink md:gap-2 md:px-6">
+      {layout === 'tablet' && (
+        <Link to="/" className="text-lg font-medium tracking-tight">
           Taskahan
         </Link>
       )}
@@ -165,7 +160,7 @@ export function TopBar({
           <>
             <button
               type="button"
-              className={cn(barButton, panel === 'progress' && 'bg-white/15')}
+              className={cn(barButton, panel === 'progress' && 'bg-sunken')}
               aria-expanded={panel === 'progress'}
               aria-controls="board-progress-panel"
               onClick={() => toggle('progress')}
@@ -174,7 +169,7 @@ export function TopBar({
             </button>
             <button
               type="button"
-              className={cn(barButton, panel === 'chat' && 'bg-white/15')}
+              className={cn(barButton, panel === 'chat' && 'bg-sunken')}
               aria-expanded={panel === 'chat'}
               aria-controls="board-chat-panel"
               onClick={() => toggle('chat')}
@@ -183,7 +178,7 @@ export function TopBar({
             </button>
           </>
         )}
-        <span className="flex items-center gap-1.5 px-2 text-body whitespace-nowrap">
+        <span className="hidden xl:flex items-center gap-1.5 px-2 text-body whitespace-nowrap">
           <span aria-hidden className="size-2.5 rounded-full bg-done" />
           {onlineCount} online
         </span>

@@ -24,7 +24,7 @@ export function Gallery() {
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-8 p-6">
-      <h1 className="font-display text-name font-bold uppercase tracking-[0.02em]">
+      <h1 className="text-name font-medium tracking-tight">
         UI primitives
       </h1>
 

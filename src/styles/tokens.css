@@ -1,55 +1,64 @@
-/* Design tokens from DESIGN.md. Light is the default; [data-theme='dark'] swaps every one. */
+/* Approved Taste direction: neutral chrome, blue progress, red only for problems. */
 :root {
-  --court: #0c5b49;
-  --court-deep: #08463a;
-  --scoreboard-yellow: #ffc42e;
-  --scoreboard-yellow-hover: #f2b51b;
-  /* Text on yellow. Stays dark in both themes. */
-  --on-yellow: #13211c;
-  --ground: #eef2ee;
+  color-scheme: light;
+  --court: #202421;
+  --court-deep: #e8eae7;
+  --scoreboard-yellow: #202421;
+  --scoreboard-yellow-hover: #343a35;
+  --on-yellow: #ffffff;
+  --ground: #f3f4f3;
   --surface: #ffffff;
-  --surface-sunken: #f4f6f4;
-  --line: #d5ddd6;
-  --track: #e3e8e3;
-  --ink: #13211c;
-  --muted: #5b6b64;
-  --done: #1e8e5a;
-  --done-text: #17774b;
-  --blocked: #c93428;
-  --link: #0c5b49;
-  --bar: #0c5b49;
-  --focus: #13211c;
-  --tab-line: #0c5b49;
+  --surface-sunken: #eceeeb;
+  --line: #dfe2de;
+  --track: #e4e7e3;
+  --ink: #181c19;
+  --muted: #5d635e;
+  --done: #1d5fbf;
+  --done-text: #1d5fbf;
+  --in-progress: #8b948b;
+  --blocked: #ad3037;
+  --link: #202421;
+  --bar: #f3f4f3;
+  --focus: #1d5fbf;
+  --tab-line: #202421;
   --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.18);
   /* Marks drawn on a status fill (the done check, the blocked question mark, a destructive hover). */
   --on-status: #ffffff;
 
-  --jersey-royal: #2356d8;
-  --jersey-rust: #b8500c;
-  --jersey-violet: #7b3fe4;
-  --jersey-teal: #0d7f86;
-  --jersey-magenta: #c4267a;
-  --jersey-graphite: #3f4a54;
-  --jersey-steel: #1c75b5;
-  --jersey-brown: #7a4a21;
+  --avatar-ink: #29382e;
+  --jersey-royal: #dfe7f0;
+  --jersey-rust: #eee3d8;
+  --jersey-violet: #e5e2ed;
+  --jersey-teal: #dcebe8;
+  --jersey-magenta: #efdfe6;
+  --jersey-graphite: #e2e5e3;
+  --jersey-steel: #dde9ee;
+  --jersey-brown: #e9e5da;
 }
 
 :root[data-theme='dark'] {
-  --ground: #0b1512;
-  --surface: #12201b;
-  --surface-sunken: #0f1a16;
-  --line: #2a3f36;
-  --track: #22342c;
-  --ink: #e8efea;
-  --muted: #9db0a7;
-  --done: #3fbf82;
-  --done-text: #3fbf82;
-  --blocked: #f0685c;
-  --link: #ffc42e;
-  --bar: #08463a;
-  --focus: #ffc42e;
-  --tab-line: #ffc42e;
+  color-scheme: dark;
+  --court: #eeeeee;
+  --court-deep: #292929;
+  --scoreboard-yellow: #eeeeee;
+  --scoreboard-yellow-hover: #d7d7d7;
+  --on-yellow: #171917;
+  --ground: #111111;
+  --surface: #1b1b1b;
+  --surface-sunken: #252525;
+  --line: #363636;
+  --track: #333333;
+  --ink: #f1f3f1;
+  --muted: #b2b8b2;
+  --done: #82b8ff;
+  --done-text: #82b8ff;
+  --in-progress: #858c85;
+  --blocked: #ff9da5;
+  --link: #f1f3f1;
+  --bar: #111111;
+  --focus: #82b8ff;
+  --tab-line: #eeeeee;
   --overlay-shadow: 0 8px 24px rgb(19 33 28 / 0.5);
   /* The dark status fills are light, so white marks on them fall under 3:1. */
-  --on-status: #0b1512;
+  --on-status: #111111;
 }

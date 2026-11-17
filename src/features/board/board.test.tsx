@@ -92,6 +92,19 @@ afterAll(() => {
 })
 
 describe('board shell', () => {
+  it('opens a blocked task and switches desktop workspace sections', async () => {
+    setWidth(1440)
+    renderBoard()
+    await userEvent.click(await screen.findByRole('button', { name: 'View question' }))
+    const task = seedBoard.tasks.find((t) => t.open_questions > 0 && t.status !== 'done')!
+    expect(screen.getByRole('group', { name: `Task #${task.number} details` })).toBeVisible()
+    const nav = screen.getByRole('navigation', { name: 'Workspace' })
+    await userEvent.click(within(nav).getByRole('button', { name: 'Progress' }))
+    expect(screen.getByRole('region', { name: 'Task Progress' })).toBeVisible()
+    expect(screen.queryByRole('main', { name: 'Board' })).not.toBeInTheDocument()
+    await userEvent.click(within(nav).getByRole('button', { name: 'Board' }))
+    expect(screen.getByRole('main', { name: 'Board' })).toBeVisible()
+  })
   it('shows roster, board and dock side by side on a wide screen', async () => {
     setWidth(1440)
     renderBoard()
@@ -752,7 +765,7 @@ describe('second review fixes', () => {
     })
     await act(() => client.invalidateQueries({ queryKey: ['board', 'capstone'] }))
     const ben = screen.getByRole('region', { name: "ben's tasks" })
-    expect(within(ben).getByRole('button', { name: /Arrived late/ })).toHaveAttribute(
+    expect(await within(ben).findByRole('button', { name: /Arrived late/ })).toHaveAttribute(
       'aria-expanded',
       'true',
     )

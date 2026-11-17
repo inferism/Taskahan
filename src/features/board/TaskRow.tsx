@@ -69,7 +69,7 @@ export function TaskRow({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={onToggle}
-        className="flex min-h-11 w-full items-center gap-2 rounded-md py-1 text-left hover:bg-sunken focus-visible:bg-sunken"
+        className="flex min-h-11 w-full items-center gap-2 rounded-md border-b border-line py-4 text-left hover:bg-sunken focus-visible:bg-sunken"
       >
         <StatusGlyph status={shown} />
         <span className="text-label text-muted">#{task.number}</span>

@@ -41,9 +41,18 @@ function renderAt(path: string) {
 }
 
 describe('auth guard', () => {
-  it('redirects an unauthenticated visit to / to /login', async () => {
+  it('shows the public landing page to guests', async () => {
     getSession.mockResolvedValue({ data: { session: null } })
     const router = renderAt('/')
+    expect(
+      await screen.findByRole('heading', { name: /Your people.*One shared board/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+  })
+
+  it('keeps group boards protected', async () => {
+    getSession.mockResolvedValue({ data: { session: null } })
+    const router = renderAt('/g/private')
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/login')
   })

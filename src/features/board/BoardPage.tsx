@@ -24,6 +24,7 @@ import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { useReconnecting } from '@/realtime/live'
 import { Avatar, Button, cn } from '@/ui'
+import { WorkspaceNav } from '@/ui/WorkspaceNav'
 import {
   avatarUrl,
   boardKey,
@@ -37,7 +38,14 @@ import { ChatPane, Dock, LogsPane } from './Dock'
 import { MemberColumn } from './MemberColumn'
 import { QuestionThread } from '@/features/threads/QuestionThread'
 import { TaskDialog } from './TaskDialog'
-import { amLeader, canSetStatus, columnMembers, myMember, tasksByMember } from './selectors'
+import {
+  amLeader,
+  canSetStatus,
+  columnMembers,
+  isBlocked,
+  myMember,
+  tasksByMember,
+} from './selectors'
 import { TopBar, type Panel } from './TopBar'
 
 type PhoneTab = 'board' | 'progress' | 'chat' | 'logs'
@@ -199,12 +207,15 @@ function BoardShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, tab])
 
-  const goToPage = useCallback((index: number, smooth = true) => {
-    const pager = pagerRef.current
-    if (!pager) return
-    pager.scrollTo({ left: index * pager.clientWidth, behavior: smooth ? 'smooth' : 'auto' })
-    setPage(index)
-  }, [])
+  const goToPage = useCallback(
+    (index: number, smooth = true) => {
+      const pager = pagerRef.current
+      if (!pager) return
+      pager.scrollTo({ left: index * pager.clientWidth, behavior: smooth ? 'smooth' : 'auto' })
+      setPage(index)
+    },
+    [setPage],
+  )
 
   const linkedId = linked?.id
   const linkedAssignee = linked?.assignee_id
@@ -228,8 +239,8 @@ function BoardShell({
   /** Roster row: show that member's column, expanded. */
   const showMember = useCallback(
     (memberId: string) => {
+      setTab('board')
       if (layout === 'phone') {
-        setTab('board')
         const index = members.findIndex((m) => m.id === memberId)
         // The pager mounts again when the Board tab returns; wait a frame for it.
         requestAnimationFrame(() => goToPage(index, false))
@@ -243,16 +254,19 @@ function BoardShell({
           ?.scrollIntoView?.({ behavior: 'smooth', inline: 'nearest', block: 'nearest' }),
       )
     },
-    [layout, members, goToPage],
+    [layout, members, goToPage, setTab, setPanel, setExpanded],
   )
 
-  const toggleTask = useCallback((task: Task) => {
-    setExpanded(task.assignee_id)
-    setOpenTasks((cur) => ({
-      ...cur,
-      [task.assignee_id]: cur[task.assignee_id] === task.id ? undefined : task.id,
-    }))
-  }, [])
+  const toggleTask = useCallback(
+    (task: Task) => {
+      setExpanded(task.assignee_id)
+      setOpenTasks((cur) => ({
+        ...cur,
+        [task.assignee_id]: cur[task.assignee_id] === task.id ? undefined : task.id,
+      }))
+    },
+    [setExpanded, setOpenTasks],
+  )
 
   const roster = (
     <Roster
@@ -299,152 +313,215 @@ function BoardShell({
   ))
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-ground">
-      <TopBar
-        board={board}
-        me={me}
-        layout={layout}
-        panel={panel}
-        onPanel={setPanel}
-        onlineCount={online.size}
-        onAddTask={leader ? () => setEditor('new') : undefined}
-        onSettings={leader ? () => setSettingsOpen(true) : undefined}
-      />
-      {reconnecting && (
-        <p
-          role="status"
-          className="shrink-0 border-b border-line bg-sunken px-4 py-1 text-body text-muted"
-        >
-          Reconnecting…
-        </p>
-      )}
-      {refreshFailed && (
-        <p
-          role="alert"
-          className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-sunken px-4 py-1 text-body text-blocked"
-        >
-          Could not refresh the board. You are seeing the last version that loaded.
-          <Button variant="quiet" busy={retrying} busyLabel="Retrying…" onClick={onRetry}>
-            Retry
-          </Button>
-        </p>
-      )}
-      {missingLink && (
-        <p role="status" className="shrink-0 border-b border-line bg-sunken px-4 py-2 text-body">
-          Task #{missingLink} is not on this board. It may have been deleted.{' '}
-          <Link to={`/g/${board.group.id}`} className="font-semibold text-link underline">
-            Dismiss
-          </Link>
-        </p>
-      )}
-
+    <div className="flex h-dvh overflow-hidden bg-ground">
       {layout === 'desktop' && (
-        <div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)_336px]">
-          <aside className="flex min-h-0 flex-col border-r border-line bg-surface">{roster}</aside>
-          <BoardArea>{columns}</BoardArea>
-          <aside className="flex min-h-0 flex-col border-l border-line bg-surface">
-            <Dock board={board} />
-          </aside>
-        </div>
-      )}
-
-      {layout === 'tablet' && (
-        <div className="relative flex min-h-0 flex-1">
-          <BoardArea>{columns}</BoardArea>
-          <SlideOver
-            id="board-progress-panel"
-            side="left"
-            label="Task Progress"
-            open={panel === 'progress'}
-            onClose={() => setPanel(null)}
-          >
-            {roster}
-          </SlideOver>
-          <SlideOver
-            id="board-chat-panel"
-            side="right"
-            label="Chat and logs"
-            open={panel === 'chat'}
-            onClose={() => setPanel(null)}
-          >
-            <Dock board={board} />
-          </SlideOver>
-        </div>
-      )}
-
-      {layout === 'phone' && (
-        <>
-          <main className="flex min-h-0 flex-1 flex-col">
-            {tab === 'board' && (
-              <>
-                <Pager board={board} members={members} page={page} onPage={(i) => goToPage(i)} />
-                <div
-                  ref={pagerRef}
-                  onScroll={(e) => {
-                    const el = e.currentTarget
-                    if (el.clientWidth > 0) setPage(Math.round(el.scrollLeft / el.clientWidth))
-                  }}
-                  className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
+        <WorkspaceNav>
+          <div className="mt-5 border-t border-line pt-5">
+            {phoneTabs
+              .filter((t) => leader || t.value !== 'logs')
+              .map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="workspace-link w-full"
+                  aria-current={tab === value ? 'page' : undefined}
+                  onClick={() => setTab(value)}
                 >
-                  {columns}
+                  <Icon size={18} aria-hidden />
+                  {label}
+                </button>
+              ))}
+          </div>
+        </WorkspaceNav>
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <TopBar
+          board={board}
+          me={me}
+          layout={layout}
+          panel={panel}
+          onPanel={setPanel}
+          onlineCount={online.size}
+          onAddTask={leader ? () => setEditor('new') : undefined}
+          onSettings={leader ? () => setSettingsOpen(true) : undefined}
+        />
+        {reconnecting && (
+          <p
+            role="status"
+            className="shrink-0 border-b border-line bg-sunken px-4 py-1 text-body text-muted"
+          >
+            Reconnecting…
+          </p>
+        )}
+        {refreshFailed && (
+          <p
+            role="alert"
+            className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-sunken px-4 py-1 text-body text-blocked"
+          >
+            Could not refresh the board. You are seeing the last version that loaded.
+            <Button variant="quiet" busy={retrying} busyLabel="Retrying…" onClick={onRetry}>
+              Retry
+            </Button>
+          </p>
+        )}
+        {missingLink && (
+          <p role="status" className="shrink-0 border-b border-line bg-sunken px-4 py-2 text-body">
+            Task #{missingLink} is not on this board. It may have been deleted.{' '}
+            <Link to={`/g/${board.group.id}`} className="font-semibold text-link underline">
+              Dismiss
+            </Link>
+          </p>
+        )}
+
+        {layout === 'desktop' && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6">
+            <div className="py-6">
+              <h1 className="text-[30px] font-medium tracking-tight">
+                {tab === 'board' ? board.group.name : phoneTabs.find((t) => t.value === tab)?.label}
+              </h1>
+              <p className="mt-1 text-body text-muted">
+                {tab === 'board' ? 'Everyone’s part, in one place.' : board.group.name}
+              </p>
+            </div>
+            {tab === 'board' ? (
+              <>
+                {board.tasks.some(isBlocked) && (
+                  <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-line bg-surface px-5 py-3">
+                    <p className="text-body">
+                      <span className="font-medium text-blocked">A task needs a hand.</span> An open
+                      question is waiting for an answer.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        const task = board.tasks.find(isBlocked)!
+                        showMember(task.assignee_id)
+                        setOpenTasks((cur) => ({ ...cur, [task.assignee_id]: task.id }))
+                      }}
+                    >
+                      View question
+                    </Button>
+                  </div>
+                )}
+                <div className="flex min-h-[360px] flex-1">
+                  <BoardArea>{columns}</BoardArea>
+                </div>
+                <div className="mt-5 grid h-72 shrink-0 grid-cols-2 gap-5">
+                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface">
+                    {roster}
+                  </aside>
+                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface">
+                    <Dock board={board} />
+                  </aside>
                 </div>
               </>
+            ) : (
+              <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-line bg-surface">
+                {tab === 'progress' && roster}
+                {tab === 'chat' && <ChatPane board={board} />}
+                {tab === 'logs' && leader && <LogsPane board={board} />}
+              </div>
             )}
-            {tab === 'progress' && (
-              <div className="flex min-h-0 flex-1 flex-col bg-surface">{roster}</div>
+          </div>
+        )}
+
+        {layout === 'tablet' && (
+          <div className="relative flex min-h-0 flex-1">
+            <BoardArea>{columns}</BoardArea>
+            <SlideOver
+              id="board-progress-panel"
+              side="left"
+              label="Task Progress"
+              open={panel === 'progress'}
+              onClose={() => setPanel(null)}
+            >
+              {roster}
+            </SlideOver>
+            <SlideOver
+              id="board-chat-panel"
+              side="right"
+              label="Chat and logs"
+              open={panel === 'chat'}
+              onClose={() => setPanel(null)}
+            >
+              <Dock board={board} />
+            </SlideOver>
+          </div>
+        )}
+
+        {layout === 'phone' && (
+          <>
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+              {tab === 'board' && (
+                <>
+                  <Pager board={board} members={members} page={page} onPage={(i) => goToPage(i)} />
+                  <div
+                    ref={pagerRef}
+                    onScroll={(e) => {
+                      const el = e.currentTarget
+                      if (el.clientWidth > 0) setPage(Math.round(el.scrollLeft / el.clientWidth))
+                    }}
+                    className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
+                  >
+                    {columns}
+                  </div>
+                </>
+              )}
+              {tab === 'progress' && (
+                <div className="flex min-h-0 flex-1 flex-col bg-surface">{roster}</div>
+              )}
+              {tab === 'chat' && (
+                <PhonePane title="Chat">
+                  <ChatPane board={board} />
+                </PhonePane>
+              )}
+              {tab === 'logs' && leader && (
+                <PhonePane title="Logs">
+                  <LogsPane board={board} />
+                </PhonePane>
+              )}
+            </main>
+            {leader && tab === 'board' && (
+              <div className="shrink-0 border-t border-line bg-surface p-3">
+                <Button variant="primary" className="w-full" onClick={() => setEditor('new')}>
+                  Add task
+                </Button>
+              </div>
             )}
-            {tab === 'chat' && (
-              <PhonePane title="Chat">
-                <ChatPane board={board} />
-              </PhonePane>
-            )}
-            {tab === 'logs' && leader && (
-              <PhonePane title="Logs">
-                <LogsPane board={board} />
-              </PhonePane>
-            )}
-          </main>
-          {leader && tab === 'board' && (
-            <div className="shrink-0 border-t border-line bg-surface p-3">
-              <Button variant="primary" className="w-full" onClick={() => setEditor('new')}>
-                Add task
-              </Button>
-            </div>
-          )}
-          <BottomTabs tab={tab} onTab={setTab} leader={leader} />
-        </>
-      )}
-      <TaskDialog
-        open={editor !== null}
-        onOpenChange={(open) => !open && setEditor(null)}
-        groupId={board.group.id}
-        members={activeMembers}
-        me={board.me}
-        task={editor && editor !== 'new' ? editor : undefined}
-      />
-      <RemoveMemberDialog
-        groupId={board.group.id}
-        member={managing?.action === 'remove' ? managing.member : null}
-        onOpenChange={(open) => !open && setManaging(null)}
-      />
-      <TransferLeadershipDialog
-        groupId={board.group.id}
-        member={managing?.action === 'transfer' ? managing.member : null}
-        onOpenChange={(open) => !open && setManaging(null)}
-      />
-      <TakeOverDialog
-        groupId={board.group.id}
-        me={board.me}
-        from={takingOver}
-        tasks={takingOver ? (byMember.get(takingOver.id) ?? []) : []}
-        onOpenChange={(open) => !open && setTakingOver(null)}
-      />
-      <GroupSettingsDialog
-        open={settingsOpen && leader}
-        onOpenChange={setSettingsOpen}
-        group={board.group}
-        activeCount={activeMembers.length}
-      />
+            <BottomTabs tab={tab} onTab={setTab} leader={leader} />
+          </>
+        )}
+        <TaskDialog
+          open={editor !== null}
+          onOpenChange={(open) => !open && setEditor(null)}
+          groupId={board.group.id}
+          members={activeMembers}
+          me={board.me}
+          task={editor && editor !== 'new' ? editor : undefined}
+        />
+        <RemoveMemberDialog
+          groupId={board.group.id}
+          member={managing?.action === 'remove' ? managing.member : null}
+          onOpenChange={(open) => !open && setManaging(null)}
+        />
+        <TransferLeadershipDialog
+          groupId={board.group.id}
+          member={managing?.action === 'transfer' ? managing.member : null}
+          onOpenChange={(open) => !open && setManaging(null)}
+        />
+        <TakeOverDialog
+          groupId={board.group.id}
+          me={board.me}
+          from={takingOver}
+          tasks={takingOver ? (byMember.get(takingOver.id) ?? []) : []}
+          onOpenChange={(open) => !open && setTakingOver(null)}
+        />
+        <GroupSettingsDialog
+          open={settingsOpen && leader}
+          onOpenChange={setSettingsOpen}
+          group={board.group}
+          activeCount={activeMembers.length}
+        />
+      </div>
     </div>
   )
 }
@@ -454,7 +531,7 @@ function BoardArea({ children }: { children: ReactNode }) {
   return (
     <main
       aria-label="Board"
-      className="flex min-h-0 min-w-0 flex-1 items-start gap-3 overflow-x-auto p-4"
+      className="flex min-h-0 min-w-0 flex-1 items-start gap-4 overflow-x-auto p-4 xl:p-0"
     >
       {children}
     </main>
@@ -496,7 +573,7 @@ function SlideOver({
   )
 }
 
-/** Phone: the strip of jersey tiles under the top bar. Each tile jumps to that member. */
+/** Phone: the strip of named avatars under the top bar. Each tile jumps to that member. */
 function Pager({
   board,
   members,
@@ -521,7 +598,7 @@ function Pager({
           aria-label={`${m.display_name}${m.id === board.me ? ' (you)' : ''}`}
           onClick={() => onPage(i)}
           className={cn(
-            'shrink-0 rounded-md border-b-[3px] p-1',
+            'flex shrink-0 items-center gap-2 rounded-md border-b-2 p-2 text-body',
             i === page ? 'border-(--tab-line)' : 'border-transparent',
           )}
         >
@@ -531,6 +608,7 @@ function Pager({
             former={m.status === 'former'}
             photoUrl={avatarUrl(m.avatar_path)}
           />
+          <span>{m.display_name}</span>
         </button>
       ))}
     </nav>
@@ -540,9 +618,7 @@ function Pager({
 function PhonePane({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-label={title} className="flex min-h-0 flex-1 flex-col bg-surface">
-      <h2 className="px-4 pt-4 pb-2 font-display text-name font-bold uppercase tracking-[0.02em]">
-        {title}
-      </h2>
+      <h2 className="px-4 pt-4 pb-2 text-name font-medium tracking-tight">{title}</h2>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </section>
   )
@@ -650,7 +726,7 @@ function BoardProblem({
 }) {
   return (
     <main className="mx-auto flex max-w-3xl flex-col items-start gap-3 p-6" role="alert">
-      <h1 className="font-display text-name font-bold uppercase tracking-[0.02em]">
+      <h1 className="text-name font-medium tracking-tight">
         {forbidden ? 'Board not available' : 'Could not load the board'}
       </h1>
       <p className="text-body text-muted">

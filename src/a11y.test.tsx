@@ -7,6 +7,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { createQueryClient } from '@/lib/queryClient'
 import { clearOnline } from '@/realtime/presence'
 import { ToastProvider } from '@/ui'
+import { LandingPage } from '@/features/landing/LandingPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { SignupPage } from '@/features/auth/SignupPage'
 import { BoardPage } from '@/features/board/BoardPage'
@@ -66,6 +67,10 @@ describe('axe: no serious or critical issues', () => {
   })
   afterEach(() => vi.unstubAllEnvs())
 
+  it('public landing', async () => {
+    const { container } = render(wrap(<LandingPage />))
+    expect(await serious(container)).toEqual([])
+  })
   it('login', async () => {
     const { container } = render(wrap(<LoginPage />))
     expect(await serious(container)).toEqual([])
@@ -146,11 +151,11 @@ describe.each([
   })
 })
 
-describe('jersey tiles', () => {
+describe('pastel avatars', () => {
   it.each(Object.keys(light).filter((k) => k.startsWith('jersey-')))(
-    'white text on %s is at least 4.5:1',
+    'avatar text on %s is at least 4.5:1',
     (k) => {
-      expect(ratio('#ffffff', light[k])).toBeGreaterThanOrEqual(4.5)
+      expect(ratio(light['avatar-ink'], light[k])).toBeGreaterThanOrEqual(4.5)
     },
   )
 })
