@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { Board } from '@/features/board/api'
+import { avatarUrl, type Board } from '@/features/board/api'
 import { memberLabel, membersById } from '@/features/board/names'
 import { TaskRefs } from '@/features/board/TaskRefs'
 import { messagesKey } from '@/realtime/groupChannel'
@@ -168,6 +168,7 @@ export function ChatPane({ board }: { board: Board }) {
                       seat={author?.seat ?? 0}
                       name={author?.display_name ?? 'Unknown'}
                       size={28}
+                      photoUrl={avatarUrl(author?.avatar_path ?? null)}
                       former={author?.status === 'former'}
                     />
                   )}

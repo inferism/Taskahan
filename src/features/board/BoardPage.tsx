@@ -1,4 +1,5 @@
-import { ChartNoAxesColumn, Columns3, MessageSquare, ScrollText, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { boardSections, type BoardSection } from './sections'
 import {
   useCallback,
   useEffect,
@@ -24,6 +25,7 @@ import { usePresence } from '@/features/presence/usePresence'
 import { useGroupChannel } from '@/realtime/groupChannel'
 import { useReconnecting } from '@/realtime/live'
 import { Avatar, Button, cn } from '@/ui'
+import { useAuth } from '@/app/auth'
 import { WorkspaceNav } from '@/ui/WorkspaceNav'
 import {
   avatarUrl,
@@ -47,8 +49,6 @@ import {
   tasksByMember,
 } from './selectors'
 import { TopBar, type Panel } from './TopBar'
-
-type PhoneTab = 'board' | 'progress' | 'chat' | 'logs'
 
 export function BoardPage() {
   const { groupId = '', number } = useParams()
@@ -165,14 +165,29 @@ function BoardShell({
   const [takingOver, setTakingOver] = useState<Member | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const activeMembers = useMemo(() => members.filter((m) => m.status === 'active'), [members])
-  const [chosenPanel, setPanel] = useState<Panel | null>(null)
+  const location = useLocation()
+  const { session } = useAuth()
+  const userId = session?.user.id
+  useEffect(() => {
+    if (userId) sessionStorage.setItem(`taskahan.group.${userId}`, board.group.id)
+  }, [userId, board.group.id])
+  const section = new URLSearchParams(location.search).get('section')
+  const initialTab =
+    boardSections.find((t) => t.value === section && (leader || section !== 'logs'))?.value ??
+    'board'
+  const [chosenPanel, setPanel] = useState<Panel | null>(
+    initialTab === 'progress'
+      ? 'progress'
+      : initialTab === 'chat' || initialTab === 'logs'
+        ? 'chat'
+        : null,
+  )
   // Panels only exist on tablets.
   const panel = layout === 'tablet' ? chosenPanel : null
-  const [tab, setTab] = useState<PhoneTab>('board')
+  const [tab, setTab] = useState<BoardSection>(initialTab)
   const [page, setPage] = useState(0)
 
   // Deep link `/g/:groupId/t/:number`: open that task once per navigation to it.
-  const location = useLocation()
   const linked = linkedNumber
     ? board.tasks.find((t) => t.number === Number(linkedNumber))
     : undefined
@@ -189,6 +204,7 @@ function BoardShell({
   const missingLink = linkedNumber && !linked ? linkedNumber : undefined
 
   const columnRefs = useRef(new Map<string, HTMLElement>())
+  const scrollTarget = useRef<number | null>(null)
   const pagerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -211,7 +227,14 @@ function BoardShell({
     (index: number, smooth = true) => {
       const pager = pagerRef.current
       if (!pager) return
-      pager.scrollTo({ left: index * pager.clientWidth, behavior: smooth ? 'smooth' : 'auto' })
+      scrollTarget.current = index
+      pager.scrollTo({
+        left: index * pager.clientWidth,
+        behavior:
+          smooth && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'smooth'
+            : 'auto',
+      })
       setPage(index)
     },
     [setPage],
@@ -317,7 +340,7 @@ function BoardShell({
       {layout === 'desktop' && (
         <WorkspaceNav>
           <div className="mt-5 border-t border-line pt-5">
-            {phoneTabs
+            {boardSections
               .filter((t) => leader || t.value !== 'logs')
               .map(({ value, label, icon: Icon }) => (
                 <button
@@ -377,7 +400,9 @@ function BoardShell({
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6">
             <div className="py-6">
               <h1 className="text-[30px] font-medium tracking-tight">
-                {tab === 'board' ? board.group.name : phoneTabs.find((t) => t.value === tab)?.label}
+                {tab === 'board'
+                  ? board.group.name
+                  : boardSections.find((t) => t.value === tab)?.label}
               </h1>
               <p className="mt-1 text-body text-muted">
                 {tab === 'board' ? 'Everyone’s part, in one place.' : board.group.name}
@@ -443,7 +468,7 @@ function BoardShell({
               open={panel === 'chat'}
               onClose={() => setPanel(null)}
             >
-              <Dock board={board} />
+              <Dock board={board} defaultTab={initialTab === 'logs' ? 'logs' : 'chat'} />
             </SlideOver>
           </div>
         )}
@@ -456,9 +481,19 @@ function BoardShell({
                   <Pager board={board} members={members} page={page} onPage={(i) => goToPage(i)} />
                   <div
                     ref={pagerRef}
+                    onPointerDown={() => {
+                      scrollTarget.current = null
+                    }}
+                    onWheel={() => {
+                      scrollTarget.current = null
+                    }}
                     onScroll={(e) => {
                       const el = e.currentTarget
-                      if (el.clientWidth > 0) setPage(Math.round(el.scrollLeft / el.clientWidth))
+                      if (!el.clientWidth) return
+                      const index = Math.round(el.scrollLeft / el.clientWidth)
+                      if (scrollTarget.current !== null && scrollTarget.current !== index) return
+                      scrollTarget.current = null
+                      setPage(index)
                     }}
                     className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
                   >
@@ -585,10 +620,30 @@ function Pager({
   page: number
   onPage: (index: number) => void
 }) {
+  const strip = useRef<HTMLElement>(null)
+  const line = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const nav = strip.current
+    const active = nav?.querySelector<HTMLElement>('[aria-current=true]')
+    if (!nav || !active) return
+    function align() {
+      if (!line.current || !active) return
+      line.current.style.transform = `translateX(${active.offsetLeft}px)`
+      line.current.style.width = `${active.offsetWidth}px`
+    }
+    align()
+    active.scrollIntoView?.({ inline: 'nearest', block: 'nearest', behavior: 'instant' })
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(align)
+    observer.observe(nav)
+    observer.observe(active)
+    return () => observer.disconnect()
+  }, [page, members])
   return (
     <nav
+      ref={strip}
       aria-label="Members"
-      className="flex shrink-0 gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 [scrollbar-width:none]"
+      className="relative flex shrink-0 gap-2 overflow-x-auto border-b border-line bg-surface px-4 py-2 [scrollbar-width:none]"
     >
       {members.map((m, i) => (
         <button
@@ -597,10 +652,7 @@ function Pager({
           aria-current={i === page ? 'true' : undefined}
           aria-label={`${m.display_name}${m.id === board.me ? ' (you)' : ''}`}
           onClick={() => onPage(i)}
-          className={cn(
-            'flex shrink-0 items-center gap-2 rounded-md border-b-2 p-2 text-body',
-            i === page ? 'border-(--tab-line)' : 'border-transparent',
-          )}
+          className="flex shrink-0 items-center gap-2 rounded-md p-2 text-body"
         >
           <Avatar
             seat={m.seat}
@@ -611,6 +663,11 @@ function Pager({
           <span>{m.display_name}</span>
         </button>
       ))}
+      <span
+        ref={line}
+        aria-hidden
+        className="pointer-events-none absolute bottom-1 left-0 h-0.5 rounded-full bg-ink motion-safe:transition-[transform,width] motion-safe:duration-200"
+      />
     </nav>
   )
 }
@@ -624,20 +681,13 @@ function PhonePane({ title, children }: { title: string; children: ReactNode }) 
   )
 }
 
-const phoneTabs: { value: PhoneTab; label: string; icon: typeof Columns3 }[] = [
-  { value: 'board', label: 'Board', icon: Columns3 },
-  { value: 'progress', label: 'Progress', icon: ChartNoAxesColumn },
-  { value: 'chat', label: 'Chat', icon: MessageSquare },
-  { value: 'logs', label: 'Logs', icon: ScrollText },
-]
-
 function BottomTabs({
   tab,
   onTab,
   leader,
 }: {
-  tab: PhoneTab
-  onTab: (tab: PhoneTab) => void
+  tab: BoardSection
+  onTab: (tab: BoardSection) => void
   leader: boolean
 }) {
   return (
@@ -645,7 +695,7 @@ function BottomTabs({
       aria-label="Board sections"
       className="flex shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
     >
-      {phoneTabs
+      {boardSections
         .filter((t) => leader || t.value !== 'logs')
         .map(({ value, label, icon: Icon }) => (
           <button

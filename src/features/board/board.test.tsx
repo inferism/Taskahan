@@ -92,6 +92,13 @@ afterAll(() => {
 })
 
 describe('board shell', () => {
+  it('opens Chat directly when returning from the workspace sidebar', async () => {
+    setWidth(1440)
+    renderBoard('/g/capstone?section=chat')
+    expect(await screen.findByRole('heading', { name: 'Chat' })).toBeVisible()
+    expect(sessionStorage.getItem('taskahan.group.u-ana')).toBe('capstone')
+  })
+
   it('opens a blocked task and switches desktop workspace sections', async () => {
     setWidth(1440)
     renderBoard()

@@ -83,6 +83,21 @@
   * {
     scrollbar-color: var(--line) var(--ground);
   }
+  :where(
+      a[href],
+      button,
+      select,
+      summary,
+      label[for],
+      input[type='checkbox'],
+      input[type='radio'],
+      [role='button'],
+      [role='tab'],
+      [role='menuitem'],
+      [role='option']
+    ):not(:disabled):not([aria-disabled='true']):not([data-disabled]) {
+    cursor: pointer;
+  }
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
