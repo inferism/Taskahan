@@ -38,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={busy || undefined}
       onClick={busy ? (e) => e.preventDefault() : onClick}
       className={cn(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-sans text-body font-medium transition-colors duration-[120ms] sm:h-10',
+        'inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-sans text-body font-medium transition-[color,background-color,border-color,transform] duration-[120ms] ease-(--ease-out) active:scale-[0.97] sm:h-10',
         'disabled:pointer-events-none disabled:opacity-45',
         variants[variant],
         className,

@@ -301,9 +301,10 @@ function BoardShell({
     />
   )
 
-  const columns = members.map((m) => (
+  const columns = members.map((m, i) => (
     <MemberColumn
       key={m.id}
+      index={i}
       ref={(el) => {
         if (el) columnRefs.current.set(m.id, el)
         else columnRefs.current.delete(m.id)

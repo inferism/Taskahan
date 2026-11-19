@@ -23,7 +23,7 @@ Use the existing shared buttons, fields, dialogs, menus and tabs. Primary action
 
 Small text is at least 12px; standard app body text is 14px. Touch controls are generally 44px high. Task columns and member selectors scroll within their containers, never widening the page. Hide only decorative avatar groups from assistive technology. Use visible text for status and accessible labels for icon-only actions.
 
-Motion is limited to short state feedback and the landing entrance. Respect reduced-motion preferences. The public page demonstrates the actual product rather than using unrelated stock imagery or video.
+Motion is short state feedback that plays once per change (240 to 420ms, ease-out): board and group-list rows rise in with a capped stagger, task details and Done unfold, status glyphs pop or sweep in, the status control's thumb slides, progress bars glide, dialogs scale in (sheets slide up on phones), toasts slide from the right, buttons dip on press, a teammate coming online pulses three times, finishing every task sweeps the bar once with an All done label, and realtime edits add an edge mark to the wash. The keyframes live in `src/styles/base.css` behind `prefers-reduced-motion: no-preference`, so reduced motion keeps every state change without movement. The public page demonstrates the actual product rather than using unrelated stock imagery or video.
 
 ## Validation
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { cn } from './cn'
 
 const jerseys = [
@@ -29,6 +30,19 @@ export function Avatar({ seat, name, size = 36, photoUrl, online, former }: Avat
   const num = String(seat).padStart(2, '0')
   const label = `${name}, number ${num}${former ? ', former member' : ''}${online ? ', online' : ''}`
   const photo = photoUrl && !former
+  // Pulse only when someone comes online while the avatar is already on screen, so the first
+  // presence sync after a page load does not set every avatar pulsing at once.
+  const [settled, setSettled] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(true), 2000)
+    return () => clearTimeout(t)
+  }, [])
+  const [seenOnline, setSeenOnline] = useState(online)
+  const [ping, setPing] = useState(0)
+  if (online !== seenOnline) {
+    setSeenOnline(online)
+    if (online && settled) setPing(ping + 1)
+  }
   return (
     <span
       role="img"
@@ -48,8 +62,12 @@ export function Avatar({ seat, name, size = 36, photoUrl, online, former }: Avat
       )}
       {online && !former && (
         <span
+          key={ping}
           aria-hidden
-          className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-surface bg-done"
+          className={cn(
+            'presence-dot absolute -top-1 -right-1 size-3 rounded-full border-2 border-surface bg-done',
+            ping > 0 && 'ping',
+          )}
         />
       )}
     </span>

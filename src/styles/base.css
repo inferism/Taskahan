@@ -191,3 +191,228 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/*
+ * Motion pass (approved November 2026). Every effect is short, plays once per change and lives
+ * behind no-preference, so reduced motion keeps the same states without movement.
+ */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes unfold {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes glyph-pop {
+  0% {
+    transform: scale(0.55);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+}
+@keyframes glyph-draw {
+  from {
+    stroke-dashoffset: 14;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes glyph-sweep {
+  from {
+    opacity: 0;
+    transform: rotate(-180deg);
+  }
+}
+@keyframes ping {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+@keyframes shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+@keyframes edge {
+  0% {
+    transform: scaleY(0);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The slim edge mark that rides along with the realtime wash. */
+.wash::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--done);
+  opacity: 0;
+}
+.glyph-ring,
+.glyph-half {
+  transform-origin: 10px 10px;
+}
+/* A grid wrapper whose single row grows from nothing: details and the Done list. */
+.fold {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.fold > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wash::before {
+    animation: edge 1.2s ease-out;
+  }
+  .rise {
+    animation: rise 340ms var(--ease-out) both;
+    animation-delay: calc(min(var(--i, 0), 10) * 40ms);
+  }
+  .fold.unfold {
+    animation: unfold 260ms var(--ease-out);
+  }
+  .glyph-pop .glyph-ring {
+    animation: glyph-pop 360ms var(--ease-out);
+  }
+  .glyph-pop .glyph-tick {
+    stroke-dasharray: 14;
+    animation: glyph-draw 280ms var(--ease-out) 140ms both;
+  }
+  .glyph-pop .glyph-half {
+    animation: glyph-sweep 320ms var(--ease-out);
+  }
+  .dialog-overlay[data-state='open'] {
+    animation: fade-in 180ms ease-out;
+  }
+  .dialog-overlay[data-state='closed'] {
+    animation: fade-out 140ms var(--ease-in) forwards;
+  }
+  .dialog-content[data-state='open'] {
+    animation: sheet-in 280ms var(--ease-out);
+  }
+  .dialog-content[data-state='closed'] {
+    animation: sheet-out 180ms var(--ease-in) forwards;
+  }
+  @media (width >= 40rem) {
+    .dialog-content[data-state='open'] {
+      animation: dialog-in 240ms var(--ease-out);
+    }
+    .dialog-content[data-state='closed'] {
+      animation: dialog-out 140ms var(--ease-in) forwards;
+    }
+  }
+  .toast[data-state='open'] {
+    animation: toast-in 300ms var(--ease-out);
+  }
+  .toast[data-state='closed'] {
+    animation: toast-out 200ms var(--ease-in) forwards;
+  }
+  .presence-dot {
+    animation: pop 300ms var(--ease-out);
+  }
+  .presence-dot.ping::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border: 2px solid var(--done);
+    border-radius: 9999px;
+    animation: ping 1.1s var(--ease-out) 3;
+  }
+  .shine {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--surface) 75%, transparent),
+      transparent
+    );
+    animation: shine 900ms var(--ease-out) 200ms both;
+  }
+  .pop {
+    animation: pop 380ms var(--ease-out);
+  }
+}

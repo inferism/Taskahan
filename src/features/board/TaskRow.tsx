@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useState, type CSSProperties, type ReactNode } from 'react'
 import { useTaskFlash } from '@/realtime/live'
 import { SegmentedControl, Button, StatusGlyph, cn, statusLabel } from '@/ui'
 import type { Task } from './api'
@@ -20,6 +20,8 @@ export interface TaskRowProps {
   onEdit?: () => void
   /** The question thread, rendered under the deadline. */
   thread?: ReactNode
+  /** The column is playing its entrance: the row rises in at this position in the stagger. */
+  enterIndex?: number
 }
 
 const statusOptions = [
@@ -49,13 +51,28 @@ export function TaskRow({
   onRetry,
   onEdit,
   thread,
+  enterIndex,
 }: TaskRowProps) {
   const label = taskLabel(task, now)
   const shown = shownStatus(task)
   const panelId = useId()
   const flash = useTaskFlash(task.id)
+  // The glyph plays its arrival when the status changes, or when the row appears after the
+  // board has loaded (a new task, or one that moved into Done).
+  const [seen, setSeen] = useState(shown)
+  const [pulse, setPulse] = useState(enterIndex === undefined ? 1 : 0)
+  if (shown !== seen) {
+    setSeen(shown)
+    setPulse(pulse + 1)
+  }
+  // Details unfold when opened by a click here, not when a row mounts already open.
+  const [unfold, setUnfold] = useState(false)
   return (
-    <li data-task={task.id} className="relative">
+    <li
+      data-task={task.id}
+      className={cn('relative', enterIndex !== undefined && 'rise')}
+      style={enterIndex !== undefined ? ({ '--i': enterIndex } as CSSProperties) : undefined}
+    >
       {flash > 0 && (
         // Remounted on every new change so the wash plays again.
         <span
@@ -68,10 +85,13 @@ export function TaskRow({
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={onToggle}
+        onClick={() => {
+          setUnfold(true)
+          onToggle()
+        }}
         className="flex min-h-11 w-full items-center gap-2 rounded-md border-b border-line py-4 text-left hover:bg-sunken focus-visible:bg-sunken"
       >
-        <StatusGlyph status={shown} />
+        <StatusGlyph key={pulse} status={shown} animate={pulse > 0} />
         <span className="text-label text-muted">#{task.number}</span>
         <span className="flex min-w-0 flex-1 flex-col">
           {/* One line in the list; the whole title once the task is open. */}
@@ -89,43 +109,47 @@ export function TaskRow({
       </button>
       <div id={panelId} role="group" aria-label={`Task #${task.number} details`} hidden={!open}>
         {open && (
-          <div className="mb-2 flex flex-col gap-3 rounded-md bg-sunken p-3">
-            {canSetStatus ? (
-              <SegmentedControl
-                label={`Status of task #${task.number}`}
-                options={[...statusOptions]}
-                value={task.status}
-                onValueChange={onStatus}
-                disabled={statusSaving}
-              />
-            ) : (
-              <p className="flex items-center gap-2 text-body">
-                <StatusGlyph status={shown} size={16} />
-                {statusLabel[shown]}
-              </p>
-            )}
-            {statusError && (
-              <p role="alert" className="flex items-center gap-2 text-label text-blocked">
-                Could not change the status.
-                <Button variant="quiet" onClick={onRetry} className="h-9 px-2 sm:h-9">
-                  Retry
-                </Button>
-              </p>
-            )}
-            <p className="text-body whitespace-pre-wrap">
-              {task.details || <span className="text-muted">No details.</span>}
-            </p>
-            <p className="text-label text-muted">
-              {task.deadline
-                ? `Deadline: ${dueFormat.format(new Date(task.deadline))}`
-                : 'No deadline'}
-            </p>
-            {thread}
-            {onEdit && (
-              <Button className="self-start" onClick={onEdit}>
-                Edit
-              </Button>
-            )}
+          <div className={cn('fold', unfold && 'unfold')}>
+            <div>
+              <div className="mb-2 flex flex-col gap-3 rounded-md bg-sunken p-3">
+                {canSetStatus ? (
+                  <SegmentedControl
+                    label={`Status of task #${task.number}`}
+                    options={[...statusOptions]}
+                    value={task.status}
+                    onValueChange={onStatus}
+                    disabled={statusSaving}
+                  />
+                ) : (
+                  <p className="flex items-center gap-2 text-body">
+                    <StatusGlyph status={shown} size={16} />
+                    {statusLabel[shown]}
+                  </p>
+                )}
+                {statusError && (
+                  <p role="alert" className="flex items-center gap-2 text-label text-blocked">
+                    Could not change the status.
+                    <Button variant="quiet" onClick={onRetry} className="h-9 px-2 sm:h-9">
+                      Retry
+                    </Button>
+                  </p>
+                )}
+                <p className="text-body whitespace-pre-wrap">
+                  {task.details || <span className="text-muted">No details.</span>}
+                </p>
+                <p className="text-label text-muted">
+                  {task.deadline
+                    ? `Deadline: ${dueFormat.format(new Date(task.deadline))}`
+                    : 'No deadline'}
+                </p>
+                {thread}
+                {onEdit && (
+                  <Button className="self-start" onClick={onEdit}>
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

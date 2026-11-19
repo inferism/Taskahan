@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { forwardRef, useState, type ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
+import { forwardRef, useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { MemberMenu, type MemberAction } from '@/features/members/MemberMenu'
 import { Avatar, Button, StatusGlyph, cn } from '@/ui'
 import { avatarUrl, type Member, type Task } from './api'
@@ -37,6 +37,8 @@ export interface MemberColumnProps {
   onManage?: (action: MemberAction) => void
   /** On a former member's column: claim their tasks. */
   onTakeOver?: () => void
+  /** Position on the board, for the entrance stagger. */
+  index?: number
 }
 
 function statusLine(member: Member, isMe: boolean, online: boolean): string {
@@ -81,9 +83,16 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     renderThread,
     onManage,
     onTakeOver,
+    index = 0,
   },
   ref,
 ) {
+  // For a moment after mounting, the column and its rows play the entrance stagger.
+  const [entering, setEntering] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setEntering(false), 900)
+    return () => clearTimeout(t)
+  }, [])
   const former = member.status === 'former'
   const name = former ? `#${member.display_name}` : member.display_name
   const p = progressOf(tasks)
@@ -101,6 +110,17 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
     if (openDone) setDoneOpen(true)
   }
   const collapsed = !fullWidth && !expanded
+  // Done unfolds with motion only when its own button opens it.
+  const [doneUnfold, setDoneUnfold] = useState(false)
+  // Finishing the last task plays one sweep across the bar and pops the All done label.
+  const complete = p.total > 0 && p.done === p.total
+  const [wasComplete, setWasComplete] = useState(complete)
+  const [cheer, setCheer] = useState(0)
+  if (complete !== wasComplete) {
+    setWasComplete(complete)
+    if (complete) setCheer(cheer + 1)
+  }
+  let row = 0
 
   return (
     <section
@@ -108,8 +128,10 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
       aria-label={`${member.display_name}'s tasks`}
       data-member={member.id}
       onClick={collapsed ? onExpand : undefined}
+      style={{ '--i': index } as CSSProperties}
       className={cn(
         'flex min-h-0 shrink-0 flex-col overflow-hidden bg-surface',
+        entering && 'rise',
         fullWidth
           ? 'h-full w-full snap-start snap-always'
           : cn(
@@ -151,12 +173,32 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
           </button>
           {onManage && <MemberMenu member={member} onAction={onManage} />}
         </div>
-        <div aria-hidden className="flex h-1.5 overflow-hidden rounded-full bg-track">
-          <div className="bg-done" style={{ width: `${pct(p.done)}%` }} />
-          <div className="bg-in-progress" style={{ width: `${pct(p.inProgress)}%` }} />
+        <div aria-hidden className="relative flex h-1.5 overflow-hidden rounded-full bg-track">
+          <div
+            className="bg-done motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"
+            style={{ width: `${pct(p.done)}%` }}
+          />
+          <div
+            className="bg-in-progress motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"
+            style={{ width: `${pct(p.inProgress)}%` }}
+          />
+          {cheer > 0 && <span key={cheer} className="shine absolute inset-0" />}
         </div>
         <p className="flex items-center gap-1 text-label text-muted">
           {progressText(p)}
+          {complete && (
+            <span
+              key={cheer}
+              aria-hidden
+              className={cn(
+                'ml-1 inline-flex items-center gap-1 font-medium text-done-text',
+                cheer > 0 && 'pop',
+              )}
+            >
+              <StatusGlyph status="done" size={12} />
+              All done
+            </span>
+          )}
           {p.blocked > 0 && (
             <>
               {' · '}
@@ -181,38 +223,50 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
                     <button
                       type="button"
                       aria-expanded={!folded}
-                      onClick={() => setDoneOpen(!doneOpen)}
+                      onClick={() => {
+                        setDoneUnfold(true)
+                        setDoneOpen(!doneOpen)
+                      }}
                       className={cn(heading, 'flex min-h-11 items-center gap-1 rounded-md')}
                     >
-                      {folded ? (
-                        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-                      ) : (
-                        <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
-                      )}
+                      <ChevronRight
+                        size={16}
+                        strokeWidth={1.75}
+                        aria-hidden
+                        className={cn(
+                          'motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-(--ease-out)',
+                          !folded && 'rotate-90',
+                        )}
+                      />
                       {s.label} · {s.tasks.length}
                     </button>
                   </h3>
                 ) : (
                   <h3 className={cn(heading, 'pb-1')}>{s.label}</h3>
                 )}
-                <ul hidden={folded}>
-                  {s.tasks.map((t) => (
-                    <TaskRow
-                      key={t.id}
-                      task={t}
-                      now={now}
-                      open={openTaskId === t.id}
-                      onToggle={() => onToggleTask?.(t)}
-                      canSetStatus={canSetStatus?.(t) ?? false}
-                      onStatus={(status) => onStatus?.(t, status)}
-                      statusSaving={statusSaving}
-                      statusError={failedTaskId === t.id}
-                      onRetry={onRetryStatus}
-                      onEdit={onEdit && (() => onEdit(t))}
-                      thread={renderThread?.(t)}
-                    />
-                  ))}
-                </ul>
+                <div
+                  className={cn('fold', s.group === 'done' && doneUnfold && !folded && 'unfold')}
+                >
+                  <ul hidden={folded}>
+                    {s.tasks.map((t) => (
+                      <TaskRow
+                        enterIndex={entering ? row++ : undefined}
+                        key={t.id}
+                        task={t}
+                        now={now}
+                        open={openTaskId === t.id}
+                        onToggle={() => onToggleTask?.(t)}
+                        canSetStatus={canSetStatus?.(t) ?? false}
+                        onStatus={(status) => onStatus?.(t, status)}
+                        statusSaving={statusSaving}
+                        statusError={failedTaskId === t.id}
+                        onRetry={onRetryStatus}
+                        onEdit={onEdit && (() => onEdit(t))}
+                        thread={renderThread?.(t)}
+                      />
+                    ))}
+                  </ul>
+                </div>
               </div>
             )
           })

@@ -20,9 +20,7 @@ const noneOnline: ReadonlySet<string> = new Set()
 export function Roster({ members, tasksByMember, me, online = noneOnline, onSelect }: RosterProps) {
   return (
     <section aria-label="Task Progress" className="flex min-h-0 flex-1 flex-col">
-      <h2 className="px-4 pt-4 pb-2 text-name font-medium tracking-tight">
-        Task Progress
-      </h2>
+      <h2 className="px-4 pt-4 pb-2 text-name font-medium tracking-tight">Task Progress</h2>
       <ul className="min-h-0 flex-1 overflow-y-auto">
         {members.map((m) => {
           const p = progressOf(tasksByMember.get(m.id) ?? [])
@@ -58,8 +56,14 @@ export function Roster({ members, tasksByMember, me, online = noneOnline, onSele
                     aria-label={`${p.done} done, ${p.inProgress} in progress, ${p.todo} to do`}
                     className="flex h-1.5 overflow-hidden rounded-full bg-track"
                   >
-                    <span className="bg-done" style={{ width: `${pct(p.done)}%` }} />
-                    <span className="bg-in-progress" style={{ width: `${pct(p.inProgress)}%` }} />
+                    <span
+                      className="bg-done motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"
+                      style={{ width: `${pct(p.done)}%` }}
+                    />
+                    <span
+                      className="bg-in-progress motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"
+                      style={{ width: `${pct(p.inProgress)}%` }}
+                    />
                   </span>
                   <span
                     data-progress={m.id}

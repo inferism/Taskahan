@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             onOpenChange={(open) => {
               if (!open) setItems((cur) => cur.filter((x) => x.id !== t.id))
             }}
-            className="flex items-center justify-between gap-4 rounded-lg border border-line bg-surface p-3 text-body text-ink shadow-overlay"
+            className="toast flex items-center justify-between gap-4 rounded-lg border border-line bg-surface p-3 text-body text-ink shadow-overlay"
           >
             <T.Description>{t.message}</T.Description>
             <T.Close className="h-9 rounded-md px-2 font-semibold hover:bg-sunken">Dismiss</T.Close>

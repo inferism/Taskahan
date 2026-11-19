@@ -1,5 +1,5 @@
 import { Settings } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link, useLocation } from 'react-router'
 import { Button } from '@/ui'
 import { WorkspaceNav } from '@/ui/WorkspaceNav'
@@ -20,7 +20,10 @@ function Progress({ done, total }: { done: number; total: number }) {
         aria-valuenow={done}
         className="h-1.5 flex-1 overflow-hidden rounded-full bg-track"
       >
-        <div className="h-full bg-done" style={{ width: `${pct}%` }} />
+        <div
+          className="h-full bg-done motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <span className="text-label text-muted">
         {total === 0 ? 'No tasks yet' : `${done} of ${total} completed`}
@@ -29,9 +32,20 @@ function Progress({ done, total }: { done: number; total: number }) {
   )
 }
 
-function GroupRow({ group, onLeave }: { group: HomeGroup; onLeave: () => void }) {
+function GroupRow({
+  group,
+  index,
+  onLeave,
+}: {
+  group: HomeGroup
+  index: number
+  onLeave: () => void
+}) {
   return (
-    <li className="flex flex-col gap-4 border-b border-line py-6 last:border-b-0">
+    <li
+      className="rise flex flex-col gap-4 border-b border-line py-6 last:border-b-0"
+      style={{ '--i': index } as CSSProperties}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Link to={`/g/${group.id}`} className="text-title font-semibold text-link hover:underline">
           {group.name}
@@ -123,8 +137,8 @@ export function HomePage() {
           </p>
         ) : (
           <ul className="rounded-lg border border-line bg-surface px-6">
-            {groups.data.map((g) => (
-              <GroupRow key={g.id} group={g} onLeave={() => setLeaving(g)} />
+            {groups.data.map((g, i) => (
+              <GroupRow key={g.id} group={g} index={i} onLeave={() => setLeaving(g)} />
             ))}
           </ul>
         )}

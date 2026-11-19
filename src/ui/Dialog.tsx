@@ -17,11 +17,11 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-40 bg-ink/40" />
+        <D.Overlay className="dialog-overlay fixed inset-0 z-40 bg-ink/40" />
         <D.Content
           {...(description ? {} : { 'aria-describedby': undefined })}
           className={cn(
-            'fixed z-50 flex flex-col gap-4 bg-surface p-6 text-ink',
+            'dialog-content fixed z-50 flex flex-col gap-4 bg-surface p-6 text-ink',
             'inset-0 overflow-y-auto sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-[440px] sm:max-w-[calc(100vw-32px)]',
             'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-line sm:shadow-overlay',
           )}
