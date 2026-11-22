@@ -14,7 +14,14 @@ export function WorkspaceNav({ children }: { children?: ReactNode }) {
   return (
     <aside className="workspace-nav hidden lg:flex">
       <Link to="/" className="workspace-brand">
-        Taskahan
+        <img
+          src="/icon-64.png"
+          alt=""
+          width="28"
+          height="28"
+          className="size-7 rounded-md object-cover shadow-xs"
+        />
+        <span>Taskahan</span>
       </Link>
       <nav aria-label="Workspace" className="flex flex-col gap-1">
         <span className="px-3 pb-1 text-label font-medium tracking-wider text-muted uppercase">

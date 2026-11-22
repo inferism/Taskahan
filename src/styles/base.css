@@ -151,20 +151,6 @@
     letter-spacing: -0.02em;
     color: var(--ink);
   }
-  .workspace-brand::before {
-    content: 'T';
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    background: var(--scoreboard-yellow);
-    color: var(--on-yellow);
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0;
-  }
   .card-surface {
     background: var(--surface);
     border: 1px solid var(--line);
