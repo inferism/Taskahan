@@ -89,7 +89,10 @@ export function TaskRow({
           setUnfold(true)
           onToggle()
         }}
-        className="flex min-h-11 w-full items-center gap-2 rounded-md border-b border-line py-4 text-left hover:bg-sunken focus-visible:bg-sunken"
+        className={cn(
+          'flex min-h-11 w-full items-center gap-2.5 rounded-md border-b border-line px-2 py-3.5 text-left transition-colors duration-150 hover:bg-sunken focus-visible:bg-sunken',
+          open && 'border-transparent bg-sunken/70',
+        )}
       >
         <StatusGlyph key={pulse} status={shown} animate={pulse > 0} />
         <span className="text-label text-muted">#{task.number}</span>
@@ -111,7 +114,7 @@ export function TaskRow({
         {open && (
           <div className={cn('fold', unfold && 'unfold')}>
             <div>
-              <div className="mb-2 flex flex-col gap-3 rounded-md bg-sunken p-3">
+              <div className="mb-2.5 flex flex-col gap-3 rounded-md border border-line bg-ground p-3.5 shadow-card">
                 {canSetStatus ? (
                   <SegmentedControl
                     label={`Status of task #${task.number}`}

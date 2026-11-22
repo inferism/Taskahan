@@ -340,7 +340,10 @@ function BoardShell({
     <div className="flex h-dvh overflow-hidden bg-ground">
       {layout === 'desktop' && (
         <WorkspaceNav>
-          <div className="mt-5 border-t border-line pt-5">
+          <div className="mt-4 border-t border-line pt-4">
+            <span className="block truncate px-3 pb-1.5 text-label font-medium tracking-wider text-muted uppercase">
+              {board.group.name}
+            </span>
             {boardSections
               .filter((t) => leader || t.value !== 'logs')
               .map(({ value, label, icon: Icon }) => (
@@ -412,10 +415,10 @@ function BoardShell({
             {tab === 'board' ? (
               <>
                 {board.tasks.some(isBlocked) && (
-                  <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-line bg-surface px-5 py-3">
+                  <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-blocked-border bg-blocked-soft px-5 py-3 shadow-card">
                     <p className="text-body">
-                      <span className="font-medium text-blocked">A task needs a hand.</span> An open
-                      question is waiting for an answer.
+                      <span className="font-semibold text-blocked">A task needs a hand.</span> An
+                      open question is waiting for an answer.
                     </p>
                     <Button
                       onClick={() => {
@@ -432,16 +435,16 @@ function BoardShell({
                   <BoardArea>{columns}</BoardArea>
                 </div>
                 <div className="mt-5 grid h-72 shrink-0 grid-cols-2 gap-5">
-                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface">
+                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card">
                     {roster}
                   </aside>
-                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface">
+                  <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card">
                     <Dock board={board} />
                   </aside>
                 </div>
               </>
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-line bg-surface">
+              <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-line bg-surface shadow-card">
                 {tab === 'progress' && roster}
                 {tab === 'chat' && <ChatPane board={board} />}
                 {tab === 'logs' && leader && <LogsPane board={board} />}
@@ -653,11 +656,17 @@ function Pager({
           aria-current={i === page ? 'true' : undefined}
           aria-label={`${m.display_name}${m.id === board.me ? ' (you)' : ''}`}
           onClick={() => onPage(i)}
-          className="flex shrink-0 items-center gap-2 rounded-md p-2 text-body"
+          className={cn(
+            'flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-body font-medium transition-colors duration-150',
+            i === page
+              ? 'border-transparent bg-accent-soft text-yellow'
+              : 'border-line bg-ground text-muted hover:text-ink',
+          )}
         >
           <Avatar
             seat={m.seat}
             name={m.display_name}
+            size={28}
             former={m.status === 'former'}
             photoUrl={avatarUrl(m.avatar_path)}
           />
@@ -667,7 +676,7 @@ function Pager({
       <span
         ref={line}
         aria-hidden
-        className="pointer-events-none absolute bottom-1 left-0 h-0.5 rounded-full bg-ink motion-safe:transition-[transform,width] motion-safe:duration-200"
+        className="pointer-events-none absolute bottom-0.5 left-0 h-0.5 rounded-full bg-yellow motion-safe:transition-[transform,width] motion-safe:duration-200"
       />
     </nav>
   )
@@ -694,7 +703,7 @@ function BottomTabs({
   return (
     <nav
       aria-label="Board sections"
-      className="flex shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
+      className="flex shrink-0 gap-1 border-t border-line bg-surface px-2 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))]"
     >
       {boardSections
         .filter((t) => leader || t.value !== 'logs')
@@ -705,8 +714,8 @@ function BottomTabs({
             aria-current={tab === value ? 'page' : undefined}
             onClick={() => onTab(value)}
             className={cn(
-              'flex h-14 flex-1 flex-col items-center justify-center gap-0.5 border-t-[3px] text-label font-semibold',
-              tab === value ? 'border-(--tab-line) text-ink' : 'border-transparent text-muted',
+              'flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md text-label font-semibold transition-colors duration-150',
+              tab === value ? 'bg-accent-soft text-yellow' : 'text-muted hover:text-ink',
             )}
           >
             <Icon size={20} strokeWidth={1.75} aria-hidden />
@@ -717,49 +726,152 @@ function BottomTabs({
   )
 }
 
-/** Loading shows the real layout with track-coloured bars; no spinners on the board. */
+/** Loading mirrors the real layout for desktop, tablet and phone; no spinners on the board. */
 function BoardLoading() {
   const layout = useLayout()
-  const bar = (cls: string) => <div className={cn('rounded bg-track', cls)} />
+  const bar = (cls: string) => (
+    <div className={cn('rounded-sm bg-track motion-safe:animate-pulse', cls)} />
+  )
+  const columnCard = (widthCls: string, key: number) => (
+    <div
+      key={key}
+      className={cn(
+        'flex shrink-0 flex-col overflow-hidden bg-surface',
+        layout === 'phone'
+          ? 'min-h-0 flex-1'
+          : cn('rounded-lg border border-line shadow-card', widthCls),
+      )}
+    >
+      <div className="flex flex-col gap-2.5 border-b border-line p-4">
+        <div className="flex items-center gap-3">
+          <div className="size-9 shrink-0 rounded-full bg-track motion-safe:animate-pulse" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            {bar('h-3.5 w-24')}
+            {bar('h-3 w-32')}
+          </div>
+          {bar('h-4 w-8')}
+        </div>
+        {bar('h-1.5 w-full rounded-full')}
+        {bar('h-3 w-28')}
+      </div>
+      <div className="flex flex-col gap-3 p-4">
+        {bar('h-3 w-16')}
+        {[0, 1, 2].map((r) => (
+          <div key={r} className="flex items-center gap-2.5 border-b border-line pb-3 last:border-b-0">
+            <div className="size-4 shrink-0 rounded-full bg-track motion-safe:animate-pulse" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              {bar(r === 1 ? 'h-3.5 w-4/5' : 'h-3.5 w-2/3')}
+              {bar('h-3 w-20')}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
-    <div aria-busy="true" aria-label="Loading board" className="flex h-dvh flex-col bg-ground">
-      <div className="h-14 shrink-0 bg-bar" />
-      <div className="flex min-h-0 flex-1">
+    <div
+      aria-busy="true"
+      aria-label="Loading board"
+      className="flex h-dvh overflow-hidden bg-ground"
+    >
+      {layout === 'desktop' && (
+        <aside className="workspace-nav flex">
+          <div className="flex items-center gap-2.5 px-2 py-1">
+            <div className="size-7 rounded-md bg-track motion-safe:animate-pulse" />
+            {bar('h-5 w-24')}
+          </div>
+          <div className="flex flex-col gap-2 px-1">
+            {bar('mx-2 mb-1 h-3 w-16')}
+            {bar('h-10 w-full rounded-md')}
+            <div className="mt-3 flex flex-col gap-2 border-t border-line pt-4">
+              {bar('mx-2 mb-1 h-3 w-24')}
+              {bar('h-10 w-full rounded-md')}
+              {bar('h-10 w-full rounded-md')}
+              {bar('h-10 w-full rounded-md')}
+            </div>
+          </div>
+        </aside>
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-bar px-3 md:px-6">
+          {bar('h-9 w-40 rounded-md')}
+          {layout !== 'phone' && bar('h-9 w-24 rounded-md')}
+          <div className="ml-auto flex items-center gap-2">
+            {layout === 'desktop' && bar('h-9 w-24 rounded-md')}
+            <div className="size-9 rounded-full bg-track motion-safe:animate-pulse" />
+          </div>
+        </div>
+
         {layout === 'desktop' && (
-          <div className="flex w-[288px] shrink-0 flex-col gap-4 border-r border-line bg-surface p-4">
-            {bar('h-5 w-1/2')}
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="size-9 shrink-0 rounded-md bg-track" />
-                <div className="flex flex-1 flex-col gap-2">
-                  {bar('h-1.5 rounded-full')}
-                  {bar('h-3 w-2/3')}
-                </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-6">
+            <div className="py-6">
+              {bar('h-8 w-52')}
+              {bar('mt-2 h-4 w-44')}
+            </div>
+            <div className="flex min-h-[320px] flex-1 items-start gap-4 overflow-hidden">
+              {columnCard('w-[348px] grow', 0)}
+              {columnCard('w-[280px] grow', 1)}
+              {columnCard('w-[280px] grow', 2)}
+            </div>
+            <div className="mt-5 grid h-72 shrink-0 grid-cols-2 gap-5">
+              <div className="flex flex-col gap-3.5 rounded-lg border border-line bg-surface p-4 shadow-card">
+                {bar('h-5 w-32')}
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="size-9 shrink-0 rounded-full bg-track motion-safe:animate-pulse" />
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      {bar('h-3.5 w-36')}
+                      {bar('h-2 w-full rounded-full')}
+                      {bar('h-3 w-24')}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+              <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 shadow-card">
+                <div className="flex gap-3 border-b border-line pb-3">
+                  {bar('h-5 w-14')}
+                  {bar('h-5 w-14')}
+                </div>
+                {bar('h-4 w-3/4')}
+                {bar('h-4 w-1/2')}
+                {bar('h-4 w-2/3')}
+              </div>
+            </div>
           </div>
         )}
-        <div className="flex min-w-0 flex-1 gap-3 overflow-hidden p-4">
-          {[408, 248, 248].map((w, i) => (
-            <div
-              key={i}
-              className="flex shrink-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 max-md:w-full!"
-              style={{ width: w }}
-            >
-              <div className="h-[52px] rounded-md bg-track" />
-              <div className="h-1.5 rounded-full bg-track" />
-              <div className="h-4 w-2/3 rounded bg-track" />
-              <div className="h-4 w-1/2 rounded bg-track" />
-            </div>
-          ))}
-        </div>
-        {layout === 'desktop' && (
-          <div className="flex w-[336px] shrink-0 flex-col gap-3 border-l border-line bg-surface p-4">
-            {bar('h-5 w-1/3')}
-            {bar('h-4 w-3/4')}
-            {bar('h-4 w-1/2')}
-            {bar('h-4 w-2/3')}
+
+        {layout === 'tablet' && (
+          <div className="flex min-h-0 flex-1 items-start gap-4 overflow-hidden p-4">
+            {columnCard('w-[348px]', 0)}
+            {columnCard('w-[280px]', 1)}
+            {columnCard('w-[280px]', 2)}
           </div>
+        )}
+
+        {layout === 'phone' && (
+          <>
+            <div className="flex shrink-0 gap-2 overflow-hidden border-b border-line bg-surface px-4 py-2">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded-full border border-line bg-ground px-3 py-1.5"
+                >
+                  <div className="size-7 rounded-full bg-track motion-safe:animate-pulse" />
+                  {bar('h-3.5 w-14')}
+                </div>
+              ))}
+            </div>
+            {columnCard('w-full', 0)}
+            <div className="flex shrink-0 gap-1 border-t border-line bg-surface px-2 py-1.5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex h-12 flex-1 flex-col items-center justify-center gap-1">
+                  {bar('size-5 rounded-md')}
+                  {bar('h-2.5 w-10')}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

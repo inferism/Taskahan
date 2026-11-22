@@ -32,7 +32,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       className="grid grid-cols-1 gap-5 border-b border-line py-6 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)]"
     >
       <h2 className="text-title font-semibold">{title}</h2>
-      <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-surface p-5">{children}</div>
+      <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+        {children}
+      </div>
     </section>
   )
 }

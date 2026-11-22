@@ -27,8 +27,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         aria-invalid={error ? true : undefined}
         aria-describedby={note ? noteId : undefined}
         className={cn(
-          'h-11 rounded-md border bg-surface px-3 text-title text-ink placeholder:text-muted',
-          'focus:border-ink',
+          'h-11 rounded-md border bg-surface px-3.5 text-body text-ink shadow-card transition-[border-color,box-shadow] duration-150 placeholder:text-muted',
+          'focus:border-focus',
           'disabled:opacity-45',
           error ? 'border-blocked' : 'border-line',
           className,

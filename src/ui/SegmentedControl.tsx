@@ -53,12 +53,12 @@ export function SegmentedControl<T extends string>({
       disabled={disabled}
       // Radix emits '' when the active item is pressed again; keep the selection.
       onValueChange={(v) => v && onValueChange(v as T)}
-      className="relative inline-flex overflow-hidden rounded-md border border-line bg-surface"
+      className="relative inline-flex rounded-md border border-line bg-sunken p-1"
     >
       {thumb && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 left-0 bg-yellow motion-safe:transition-[transform,width] motion-safe:duration-[240ms] motion-safe:ease-(--ease-out)"
+          className="pointer-events-none absolute inset-y-1 left-0 rounded-sm bg-yellow shadow-card motion-safe:transition-[transform,width] motion-safe:duration-[240ms] motion-safe:ease-(--ease-out)"
           style={{ width: thumb.width, transform: `translateX(${thumb.left}px)` }}
         />
       )}
@@ -67,9 +67,8 @@ export function SegmentedControl<T extends string>({
           key={o.value}
           value={o.value}
           className={cn(
-            'relative h-11 flex-1 px-3 text-body font-medium text-ink transition-[color,background-color,transform] duration-[120ms] active:scale-[0.97] sm:h-10',
-            'not-first:border-l not-first:border-line',
-            'hover:bg-sunken data-[state=on]:text-on-yellow data-[state=on]:hover:bg-transparent',
+            'relative h-9 flex-1 rounded-sm px-3 text-body font-medium text-muted transition-[color,background-color,transform] duration-[140ms] active:scale-[0.97] sm:h-8',
+            'hover:text-ink data-[state=on]:text-on-yellow data-[state=on]:hover:text-on-yellow',
             // Until the thumb is measured (first paint, tests) the item fills itself.
             !thumb && 'data-[state=on]:bg-yellow',
             'disabled:opacity-45',

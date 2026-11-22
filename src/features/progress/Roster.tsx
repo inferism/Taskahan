@@ -54,7 +54,7 @@ export function Roster({ members, tasksByMember, me, online = noneOnline, onSele
                   <span
                     role="img"
                     aria-label={`${p.done} done, ${p.inProgress} in progress, ${p.todo} to do`}
-                    className="flex h-1.5 overflow-hidden rounded-full bg-track"
+                    className="flex h-2 overflow-hidden rounded-full bg-track"
                   >
                     <span
                       className="bg-done motion-safe:transition-[width] motion-safe:duration-[420ms] motion-safe:ease-(--ease-out)"

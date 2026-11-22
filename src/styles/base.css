@@ -21,6 +21,9 @@
   --color-done-text: var(--done-text);
   --color-in-progress: var(--in-progress);
   --color-blocked: var(--blocked);
+  --color-accent-soft: var(--accent-soft);
+  --color-blocked-soft: var(--blocked-soft);
+  --color-blocked-border: var(--blocked-border);
   --color-on-status: var(--on-status);
   --color-link: var(--link);
   --color-bar: var(--bar);
@@ -49,10 +52,12 @@
   --text-tally: 1.125rem;
   --text-tally--line-height: 1.35;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 
+  --shadow-card: var(--card-shadow);
+  --shadow-card-hover: var(--card-shadow-hover);
   --shadow-overlay: var(--overlay-shadow);
 }
 
@@ -106,40 +111,65 @@
 
 @layer components {
   .workspace-nav {
-    width: 208px;
+    width: 228px;
     flex-shrink: 0;
     flex-direction: column;
-    gap: 28px;
-    padding: 28px 16px;
+    gap: 24px;
+    padding: 20px 14px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
   }
   .workspace-link {
     display: flex;
     align-items: center;
     gap: 10px;
     min-height: 40px;
-    border-radius: 6px;
+    border-radius: 10px;
     padding: 8px 12px;
     text-align: left;
+    font-weight: 500;
     color: var(--muted);
+    transition:
+      background-color 160ms var(--ease-out),
+      color 160ms var(--ease-out);
   }
-  .workspace-link:hover,
-  .workspace-link[aria-current='page'] {
+  .workspace-link:hover {
     background: var(--surface-sunken);
     color: var(--ink);
+  }
+  .workspace-link[aria-current='page'] {
+    background: var(--accent-soft);
+    color: var(--scoreboard-yellow);
   }
   .workspace-brand {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-size: 22px;
-    font-weight: 500;
-    letter-spacing: -1px;
+    padding: 4px 8px;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
   }
   .workspace-brand::before {
-    content: 'tt';
-    letter-spacing: -7px;
-    padding-right: 8px;
-    font-size: 30px;
+    content: 'T';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: var(--scoreboard-yellow);
+    color: var(--on-yellow);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .card-surface {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
   }
 }
 
@@ -414,5 +444,15 @@
   }
   .pop {
     animation: pop 380ms var(--ease-out);
+  }
+  .card-lift {
+    transition:
+      transform 180ms var(--ease-out),
+      box-shadow 180ms var(--ease-out),
+      border-color 180ms ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow-hover);
   }
 }

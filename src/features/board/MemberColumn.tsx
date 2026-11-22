@@ -135,10 +135,10 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
         fullWidth
           ? 'h-full w-full snap-start snap-always'
           : cn(
-              'max-h-full rounded-lg border border-line transition-[width] duration-200',
+              'max-h-full rounded-lg border border-line shadow-card transition-[width,box-shadow] duration-200',
               expanded
-                ? 'w-[340px] min-w-[320px] grow'
-                : 'w-[280px] min-w-[260px] grow cursor-pointer hover:bg-sunken',
+                ? 'w-[348px] min-w-[320px] grow'
+                : 'w-[280px] min-w-[260px] grow cursor-pointer hover:bg-sunken/40',
             ),
       )}
     >
@@ -227,7 +227,10 @@ export const MemberColumn = forwardRef<HTMLElement, MemberColumnProps>(function 
                         setDoneUnfold(true)
                         setDoneOpen(!doneOpen)
                       }}
-                      className={cn(heading, 'flex min-h-11 items-center gap-1 rounded-md')}
+                      className={cn(
+                        heading,
+                        'flex min-h-10 w-full items-center gap-1.5 rounded-md bg-sunken px-3 py-1.5 transition-colors duration-150 hover:text-ink',
+                      )}
                     >
                       <ChevronRight
                         size={16}

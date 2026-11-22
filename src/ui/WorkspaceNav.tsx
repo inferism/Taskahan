@@ -17,13 +17,19 @@ export function WorkspaceNav({ children }: { children?: ReactNode }) {
         Taskahan
       </Link>
       <nav aria-label="Workspace" className="flex flex-col gap-1">
+        <span className="px-3 pb-1 text-label font-medium tracking-wider text-muted uppercase">
+          Workspace
+        </span>
         <NavLink to="/" end className="workspace-link">
           <LayoutGrid size={16} aria-hidden />
           Your groups
         </NavLink>
         {children ??
           (group && (
-            <div className="mt-5 border-t border-line pt-5">
+            <div className="mt-4 border-t border-line pt-4">
+              <span className="block truncate px-3 pb-1.5 text-label font-medium tracking-wider text-muted uppercase">
+                {group.name}
+              </span>
               {boardSections
                 .filter((t) => t.value !== 'logs' || group.role === 'leader')
                 .map(({ value, label, icon: Icon }) => (
@@ -38,10 +44,12 @@ export function WorkspaceNav({ children }: { children?: ReactNode }) {
                 ))}
             </div>
           ))}
-        <NavLink to="/settings" className="workspace-link">
-          <Settings size={16} aria-hidden />
-          Settings
-        </NavLink>
+        <div className="mt-4 border-t border-line pt-4">
+          <NavLink to="/settings" className="workspace-link">
+            <Settings size={16} aria-hidden />
+            Settings
+          </NavLink>
+        </div>
       </nav>
       <p className="mt-auto px-3 text-label text-muted">A place for everyone’s part.</p>
     </aside>

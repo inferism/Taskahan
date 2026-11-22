@@ -26,12 +26,12 @@ export interface TopBarProps {
 }
 
 const barButton =
-  'inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-body font-medium text-ink hover:bg-sunken'
+  'inline-flex h-10 items-center gap-1.5 rounded-md px-3 text-body font-medium text-ink transition-[color,background-color,border-color,transform] duration-[140ms] ease-(--ease-out) hover:bg-sunken active:scale-[0.98]'
 
 const menuContent =
-  'z-50 min-w-48 rounded-lg border border-line bg-surface p-1 text-body text-ink shadow-overlay'
+  'z-50 min-w-48 rounded-lg border border-line bg-surface p-1.5 text-body text-ink shadow-overlay'
 const menuItem =
-  'flex h-10 cursor-pointer items-center gap-2 rounded-md px-3 outline-none data-[highlighted]:bg-sunken'
+  'flex h-10 cursor-pointer items-center gap-2 rounded-md px-3 outline-none transition-colors duration-100 data-[highlighted]:bg-sunken'
 
 function GroupSwitcher({ board, layout }: { board: Board; layout: Layout }) {
   const groups = useGroups()
